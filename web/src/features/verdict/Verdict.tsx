@@ -15,15 +15,15 @@ export function Verdict({ r }: { r: Results }) {
   const ticks = [0, 0.25, 0.5, 0.75, 1];
   return (
     <div className={s.hero}>
-      <p className={s.decision}>
-        {choice ? `Adopt ${setupName(choice, r.setups[choice])}.` : "No decision yet."}
-      </p>
+      <p className={s.decision}>{choice ? `Adopt ${setupName(choice, r.setups[choice])}.` : "No decision yet."}</p>
       <p className={s.why}>
-        {dev.decision.why}. Rule: {r.decision_rule.baseline} stays unless a setup is better on the same tasks, or as good and cheaper per merged change.
+        {dev.decision.why.charAt(0).toUpperCase() + dev.decision.why.slice(1)}. Rule: {r.decision_rule.baseline} stays unless a setup is
+        better on the same tasks, or as good and cheaper per merged change.
       </p>
       <figure className={s.chart} aria-labelledby="verdict-caption">
         <figcaption id="verdict-caption" className="visually-hidden">
-          For each setup, the share of tasks where its change passed the tests and the share a maintainer would merge, with the cost per merged change.
+          For each setup, the share of tasks where its change passed the tests and the share a maintainer would merge, with the cost per
+          merged change.
         </figcaption>
         <div className={s.head} aria-hidden="true">
           <span>Setup</span>
@@ -83,7 +83,8 @@ export function Verdict({ r }: { r: Results }) {
             Passes the hidden tests
           </li>
           <li>
-            <span className={`${s.k} ${s.kAcc}`} aria-hidden="true" />A maintainer would merge it (line: {Math.round(dev.confidence * 100)}% interval)
+            <span className={`${s.k} ${s.kAcc}`} aria-hidden="true" />A maintainer would merge it (line: {Math.round(dev.confidence * 100)}%
+            interval)
           </li>
           <li>
             <span className={`${s.k} ${s.kGap}`} aria-hidden="true" />

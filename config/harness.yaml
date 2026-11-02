@@ -1,6 +1,6 @@
 # How the harness runs agents. Budgets are in US dollars at list prices, as Claude Code reports them.
 workdir: /tmp/aeh                   # worktrees, transcripts and grading copies (AEH_WORKDIR overrides)
-concurrency: 3                      # attempts running at the same time (the target's tests are CPU-bound)
+concurrency: 2                      # attempts running at the same time (the target's tests are CPU- and memory-bound)
 slots: 10                           # database + Redis index pairs; attempts and grading lease one each
 lease_seconds: 900                  # an attempt whose worker stops heart-beating is taken over after this
 sessions:                           # hard caps per agent session: passed to Claude Code, and reserved before an attempt starts

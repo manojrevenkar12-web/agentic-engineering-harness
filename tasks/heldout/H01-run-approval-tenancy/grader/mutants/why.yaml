@@ -1,0 +1,4 @@
+tenant_without_404: switches back to the tenant connection but another workspace's run (and an unknown run) still answers 409 instead of 404 "no such run".
+existence_checked_as_owner: checks that the run exists on the owner connection, so another workspace's run is found and the caller gets 409, not 404.
+nothing_pending_is_404: maps every refusal to 404, so the owner deciding a step with nothing pending no longer gets 409.
+checked_in_the_handler_only: adds a 404 check in the HTTP handler but leaves Runner.decide on the owner connection, so a direct call with the wrong workspace still records the decision.

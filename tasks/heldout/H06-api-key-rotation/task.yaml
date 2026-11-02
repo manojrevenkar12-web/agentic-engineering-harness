@@ -1,0 +1,4 @@
+id: H06-api-key-rotation
+title: "Let customers create, list and revoke their own API keys"
+kind: feature
+target: model-router-platform

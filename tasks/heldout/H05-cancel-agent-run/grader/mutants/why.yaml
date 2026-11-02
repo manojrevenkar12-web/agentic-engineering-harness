@@ -1,0 +1,4 @@
+status_set_but_worker_never_checks: the endpoint marks the run cancelled but the worker never looks again, so a running run executes its remaining steps (and ends as succeeded).
+approvals_ignore_cancellation: approving or rejecting a step of a cancelled run is still accepted and re-queues the run.
+ended_runs_cancelled_too: lets a run that has already succeeded or been rejected be cancelled instead of answering 409.
+cancelled_as_owner: cancels on the owner connection, so another workspace can cancel a run it does not own.

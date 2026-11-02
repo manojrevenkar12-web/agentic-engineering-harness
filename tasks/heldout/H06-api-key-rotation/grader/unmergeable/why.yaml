@@ -1,0 +1,1 @@
+logs_the_new_key: writes the newly created API key into a log line and relies on the redaction filter to scrub it; AGENTS.md rule 3 says keys are never logged, the filter is only a second line of defence.

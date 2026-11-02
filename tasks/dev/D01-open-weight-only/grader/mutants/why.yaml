@@ -1,3 +1,4 @@
 auto_only: explicit closed models are still served
 explicit_only: automatic routing still uses closed models
+no_cache_check: serves a cached answer that a closed model produced
 wrong_status: rejects with 400 instead of 422

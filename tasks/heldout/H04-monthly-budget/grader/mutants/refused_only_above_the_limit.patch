@@ -1,0 +1,111 @@
+diff --git a/src/mrp/app.py b/src/mrp/app.py
+index 1d009f9..d499596 100644
+--- a/src/mrp/app.py
++++ b/src/mrp/app.py
+@@ -19,7 +19,7 @@ import uuid
+ from collections.abc import AsyncIterator, Mapping
+ from contextlib import asynccontextmanager
+ from dataclasses import dataclass, field
+-from decimal import Decimal
++from decimal import ROUND_HALF_UP, Decimal
+ from pathlib import Path
+ from typing import Any
+ 
+@@ -121,6 +121,10 @@ class RunIn(BaseModel):
+     cost_limit: Decimal = Decimal("0.50")
+ 
+ 
++class BudgetIn(BaseModel):
++    monthly_limit: Decimal | None = Field(gt=0, lt=1_000_000)  # EUR; null removes the budget
++
++
+ class WorkspaceIn(BaseModel):
+     name: str
+     plan: str
+@@ -613,6 +617,25 @@ def create_app(
+         async with db.tenant(ws.id) as conn:
+             return await ledger.usage_report(conn, month)
+ 
++    @app.get("/v1/budget")
++    async def get_budget(ws: Workspace = Depends(workspace)):
++        async with db.tenant(ws.id) as conn:
++            return await ledger.budget_status(conn)
++
++    @app.put("/v1/budget")
++    async def put_budget(body: BudgetIn, ws: Workspace = Depends(workspace)):
++        async with db.tenant(ws.id) as conn:
++            if body.monthly_limit is None:
++                await conn.execute("DELETE FROM mrp.budgets")
++            else:
++                await conn.execute(
++                    "INSERT INTO mrp.budgets (workspace_id, monthly_limit) VALUES ($1, $2) "
++                    "ON CONFLICT (workspace_id) DO UPDATE SET monthly_limit = EXCLUDED.monthly_limit, updated_at = now()",
++                    ws.id,
++                    body.monthly_limit.quantize(ledger.CENT8, rounding=ROUND_HALF_UP),
++                )
++            return await ledger.budget_status(conn)
++
+     @app.put("/v1/provider-keys/{provider}")
+     async def put_key(provider: str, body: ProviderKeyIn, ws: Workspace = Depends(workspace)):
+         if "byok" not in catalog.plans[ws.plan].features:
+diff --git a/src/mrp/ledger.py b/src/mrp/ledger.py
+index 146bdbe..e801406 100644
+--- a/src/mrp/ledger.py
++++ b/src/mrp/ledger.py
+@@ -76,6 +76,34 @@ async def check_entitlements(
+         )
+         if used >= plan.monthly_tokens:
+             raise Entitlement(f"monthly token allowance of {plan.monthly_tokens:,} used")
++    limit = await conn.fetchval("SELECT monthly_limit FROM mrp.budgets")
++    # compared with what was billed, never with this request's estimate: a request that starts
++    # below the budget is answered even if it takes the month past it
++    if limit is not None and (spent := await month_billed(conn)) > limit:
++        raise Entitlement(f"the workspace's monthly budget of {limit:.2f} EUR is used ({spent:.8f} billed)")
++
++
++def month_start(now: datetime | None = None) -> datetime:
++    """The start of the current calendar month in UTC."""
++    now = now or datetime.now(UTC)
++    return datetime(now.year, now.month, 1, tzinfo=UTC)
++
++
++async def month_billed(conn: asyncpg.Connection) -> Decimal:
++    """What the workspace has been billed this month (cache hits included); not cost, not estimates."""
++    return await conn.fetchval(
++        "SELECT coalesce(sum(billed_amount), 0) FROM mrp.usage WHERE created_at >= $1", month_start()
++    )
++
++
++async def budget_status(conn: asyncpg.Connection) -> dict:
++    limit = await conn.fetchval("SELECT monthly_limit FROM mrp.budgets")
++    spent = await month_billed(conn)
++    return {
++        "monthly_limit": None if limit is None else f"{limit:.8f}",
++        "spent": f"{spent:.8f}",
++        "month": month_start().strftime("%Y-%m"),
++    }
+ 
+ 
+ async def begin(
+diff --git a/src/mrp/sql/002_budgets.sql b/src/mrp/sql/002_budgets.sql
+new file mode 100644
+index 0000000..86061dd
+--- /dev/null
++++ b/src/mrp/sql/002_budgets.sql
+@@ -0,0 +1,16 @@
++-- Monthly spend budgets, set by each workspace for itself. Workspace data: row-level security like
++-- every other workspace table.
++
++CREATE TABLE IF NOT EXISTS mrp.budgets (
++  workspace_id   uuid PRIMARY KEY REFERENCES mrp.workspaces(id),
++  monthly_limit  numeric(14,8) NOT NULL CHECK (monthly_limit > 0),   -- EUR, compared with billed_amount
++  updated_at     timestamptz NOT NULL DEFAULT now()
++);
++
++ALTER TABLE mrp.budgets ENABLE ROW LEVEL SECURITY;
++DROP POLICY IF EXISTS tenant ON mrp.budgets;
++CREATE POLICY tenant ON mrp.budgets
++  USING (workspace_id = nullif(current_setting('app.workspace_id', true), '')::uuid)
++  WITH CHECK (workspace_id = nullif(current_setting('app.workspace_id', true), '')::uuid);
++
++GRANT SELECT, INSERT, UPDATE, DELETE ON mrp.budgets TO mrp_app;

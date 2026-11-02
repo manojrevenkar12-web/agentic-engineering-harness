@@ -1,0 +1,5 @@
+estimate_added_to_spend: adds the request's estimated cost to what was billed, so a request is refused while the month is still below the budget (estimates are never spend).
+all_time_spend: sums billed amounts over all time, so earlier months count against this month's budget.
+provider_cost_not_bill: compares our provider cost (actual_cost) instead of what the customer was billed, so spend including markup can exceed the budget unnoticed.
+refused_only_above_the_limit: refuses only when spend is strictly above the limit, so a month whose bill has exactly reached the budget keeps being answered.
+budget_read_as_owner: reads the budget on the owner connection, so a workspace sees another workspace's budget and everyone's spend.

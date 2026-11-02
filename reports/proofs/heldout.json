@@ -1,0 +1,320 @@
+{
+ "summary": {
+  "set": "heldout",
+  "tasks": 6,
+  "proven": 6,
+  "mutants": 24,
+  "mutants_caught": 24,
+  "unmergeable": 4,
+  "unmergeable_rejected": 4,
+  "unmergeable_rejected_by": {
+   "static": 0,
+   "diff": 0,
+   "judge": 4,
+   "none": 0
+  },
+  "judge_passes_references": "6/6",
+  "judge_cost_usd": 0.328,
+  "with_judge": true
+ },
+ "tasks": [
+  {
+   "task": "H01-run-approval-tenancy",
+   "state": {
+    "hidden_failed": 5,
+    "suite_failed": 0,
+    "suite_passed": 49
+   },
+   "reference": {
+    "accepted": true,
+    "reasons": [],
+    "judge": true,
+    "static": {
+     "format": true,
+     "lint": true,
+     "types": true
+    }
+   },
+   "mutants": [
+    {
+     "name": "checked_in_the_handler_only",
+     "caught": true,
+     "why": "adds a 404 check in the HTTP handler but leaves Runner.decide on the owner connection, so a direct call with the wrong workspace still records the decision."
+    },
+    {
+     "name": "existence_checked_as_owner",
+     "caught": true,
+     "why": "checks that the run exists on the owner connection, so another workspace's run is found and the caller gets 409, not 404."
+    },
+    {
+     "name": "nothing_pending_is_404",
+     "caught": true,
+     "why": "maps every refusal to 404, so the owner deciding a step with nothing pending no longer gets 409."
+    },
+    {
+     "name": "tenant_without_404",
+     "caught": true,
+     "why": "switches back to the tenant connection but another workspace's run (and an unknown run) still answers 409 instead of 404 \"no such run\"."
+    }
+   ],
+   "unmergeable": [
+    {
+     "name": "owner_connection_with_where_clause",
+     "tests_pass": true,
+     "rejected_by": "judge",
+     "why": "behaves correctly but keeps a request-path query on db.owner() and relies on hand-written workspace_id filters, which AGENTS.md rule 1 forbids (row-level security must do the isolating).",
+     "judge_blocking": [
+      "Runner.decide, which the approve/reject HTTP handler calls, still queries workspace tables (agent_runs, run_steps) through db.owner(), which bypasses row-level security. AGENTS.md forbids this on the request path. The fix relies on hand-written workspace_id WHERE clauses instead of db.tenant(workspace_id), so tenant isolation rests on query text and not on RLS. The new docstring also wrongly says RLS hides other workspaces' runs."
+     ]
+    }
+   ],
+   "judge_cost_usd": 0.042197,
+   "proven": true
+  },
+  {
+   "task": "H02-cache-hit-charge",
+   "state": {
+    "hidden_failed": 5,
+    "suite_failed": 0,
+    "suite_passed": 49
+   },
+   "reference": {
+    "accepted": true,
+    "reasons": [],
+    "judge": true,
+    "static": {
+     "format": true,
+     "lint": true,
+     "types": true
+    }
+   },
+   "mutants": [
+    {
+     "name": "estimated_tokens",
+     "caught": true,
+     "why": "recomputes the cost from token estimates instead of the provider-reported tokens, so hits are still billed from an estimate."
+    },
+    {
+     "name": "request_actual_cost",
+     "caught": true,
+     "why": "stores the request's total actual cost, which includes the escalated cheap first try, so a later hit is billed for calls that did not produce the answer."
+    },
+    {
+     "name": "routed_primary_prices",
+     "caught": true,
+     "why": "prices the answer with the routed primary model, which is wrong after a fallback answered instead."
+    }
+   ],
+   "unmergeable": [
+    {
+     "name": "hard_coded_cache_share",
+     "tests_pass": true,
+     "rejected_by": "judge",
+     "why": "fixes the stored cost but replaces the catalogue's cache.cached_answer_charge with a hard-coded 0.10 in the ledger, so a price change in models.yaml would silently stop applying to cache hits.",
+     "judge_blocking": [
+      "`record_cache_hit` in `src/mrp/ledger.py` hard-codes `Decimal(\"0.10\")` in place of the catalogue's `cache.cached_answer_charge`. The charge belongs in configuration, so changing the catalogue value would no longer change what cache hits are billed."
+     ]
+    }
+   ],
+   "judge_cost_usd": 0.082654,
+   "proven": true
+  },
+  {
+   "task": "H03-stream-splice",
+   "state": {
+    "hidden_failed": 2,
+    "suite_failed": 0,
+    "suite_passed": 49
+   },
+   "reference": {
+    "accepted": true,
+    "reasons": [],
+    "judge": true,
+    "static": {
+     "format": true,
+     "lint": true,
+     "types": true
+    }
+   },
+   "mutants": [
+    {
+     "name": "error_event_then_fallback",
+     "caught": true,
+     "why": "sends the provider_error event but keeps going, so the fallback model's answer is still spliced in after it."
+    },
+    {
+     "name": "no_fallback_in_streams",
+     "caught": true,
+     "why": "stops on any streaming failure, so a model that fails before its first chunk is no longer replaced by the fallback."
+    },
+    {
+     "name": "second_error_event",
+     "caught": true,
+     "why": "restores the guard but still sends a no_provider error after the provider_error event, so the stream does not end with the one provider_error the brief asks for."
+    },
+    {
+     "name": "stops_without_the_error_event",
+     "caught": true,
+     "why": "stops before the fallback but sends no error event, so the client cannot tell the answer was cut off."
+    }
+   ],
+   "unmergeable": [],
+   "judge_cost_usd": 0.024708,
+   "proven": true
+  },
+  {
+   "task": "H04-monthly-budget",
+   "state": {
+    "hidden_failed": 9,
+    "suite_failed": 0,
+    "suite_passed": 49
+   },
+   "reference": {
+    "accepted": true,
+    "reasons": [],
+    "judge": true,
+    "static": {
+     "format": true,
+     "lint": true,
+     "types": true
+    }
+   },
+   "mutants": [
+    {
+     "name": "all_time_spend",
+     "caught": true,
+     "why": "sums billed amounts over all time, so earlier months count against this month's budget."
+    },
+    {
+     "name": "budget_read_as_owner",
+     "caught": true,
+     "why": "reads the budget on the owner connection, so a workspace sees another workspace's budget and everyone's spend."
+    },
+    {
+     "name": "estimate_added_to_spend",
+     "caught": true,
+     "why": "adds the request's estimated cost to what was billed, so a request is refused while the month is still below the budget (estimates are never spend)."
+    },
+    {
+     "name": "provider_cost_not_bill",
+     "caught": true,
+     "why": "compares our provider cost (actual_cost) instead of what the customer was billed, so spend including markup can exceed the budget unnoticed."
+    },
+    {
+     "name": "refused_only_above_the_limit",
+     "caught": true,
+     "why": "refuses only when spend is strictly above the limit, so a month whose bill has exactly reached the budget keeps being answered."
+    }
+   ],
+   "unmergeable": [
+    {
+     "name": "budget_as_float",
+     "tests_pass": true,
+     "rejected_by": "judge",
+     "why": "stores and compares the budget as a float (double precision column, float model field), which AGENTS.md forbids for money (Decimal, 8 places, half up).",
+     "judge_blocking": [
+      "The budget is handled as float instead of Decimal, which AGENTS.md forbids for money. `BudgetIn.monthly_limit` is a float, the `mrp.budgets.monthly_limit` column is `double precision`, and `check_entitlements` compares `float(spent)` against it. This can give wrong results at the boundary, and `GET` can return values that are not the exact 8-place amount the user set."
+     ]
+    }
+   ],
+   "judge_cost_usd": 0.062147,
+   "proven": true
+  },
+  {
+   "task": "H05-cancel-agent-run",
+   "state": {
+    "hidden_failed": 7,
+    "suite_failed": 0,
+    "suite_passed": 49
+   },
+   "reference": {
+    "accepted": true,
+    "reasons": [],
+    "judge": true,
+    "static": {
+     "format": true,
+     "lint": true,
+     "types": true
+    }
+   },
+   "mutants": [
+    {
+     "name": "approvals_ignore_cancellation",
+     "caught": true,
+     "why": "approving or rejecting a step of a cancelled run is still accepted and re-queues the run."
+    },
+    {
+     "name": "cancelled_as_owner",
+     "caught": true,
+     "why": "cancels on the owner connection, so another workspace can cancel a run it does not own."
+    },
+    {
+     "name": "ended_runs_cancelled_too",
+     "caught": true,
+     "why": "lets a run that has already succeeded or been rejected be cancelled instead of answering 409."
+    },
+    {
+     "name": "status_set_but_worker_never_checks",
+     "caught": true,
+     "why": "the endpoint marks the run cancelled but the worker never looks again, so a running run executes its remaining steps (and ends as succeeded)."
+    }
+   ],
+   "unmergeable": [],
+   "judge_cost_usd": 0.054964,
+   "proven": true
+  },
+  {
+   "task": "H06-api-key-rotation",
+   "state": {
+    "hidden_failed": 6,
+    "suite_failed": 0,
+    "suite_passed": 49
+   },
+   "reference": {
+    "accepted": true,
+    "reasons": [],
+    "judge": true,
+    "static": {
+     "format": true,
+     "lint": true,
+     "types": true
+    }
+   },
+   "mutants": [
+    {
+     "name": "listing_includes_the_hash",
+     "caught": true,
+     "why": "the listing also returns key_hash, so items have more than the four fields and leak the stored hash."
+    },
+    {
+     "name": "own_key_hash_includes_bearer",
+     "caught": true,
+     "why": "hashes the whole Authorization header (with \"Bearer \"), so the key in use is never recognised and can revoke itself."
+    },
+    {
+     "name": "revoke_deletes_the_row",
+     "caught": true,
+     "why": "deletes the key instead of setting revoked_at, so a revoked key disappears from the listing."
+    },
+    {
+     "name": "revoked_as_owner",
+     "caught": true,
+     "why": "revokes on the owner connection, so one workspace can revoke another workspace's key."
+    }
+   ],
+   "unmergeable": [
+    {
+     "name": "logs_the_new_key",
+     "tests_pass": true,
+     "rejected_by": "judge",
+     "why": "writes the newly created API key into a log line and relies on the redaction filter to scrub it; AGENTS.md rule 3 says keys are never logged, the filter is only a second line of defence.",
+     "judge_blocking": [
+      "create_api_key passes the plaintext new API key to log.info (key=%s), relying on the redaction filter to scrub it. AGENTS.md and the task both say a key must never appear in a log line, so the key must not be passed to the logger at all."
+     ]
+    }
+   ],
+   "judge_cost_usd": 0.061374,
+   "proven": true
+  }
+ ]
+}

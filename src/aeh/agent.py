@@ -36,16 +36,15 @@ class Session:
         return {k: v for k, v in self.__dict__.items() if k != "result"} | {"result": self.result[-2000:]}
 
 
-def command(prompt_text: str, model: str, max_budget_usd: float, role: str) -> list[str]:
+def command(model: str, max_budget_usd: float, role: str) -> list[str]:
     cfg = load("agent")
     allowed = cfg["reviewer_allowed"] if role in ("reviewer", "selector") else cfg["allowed"]
     tools = cfg["tools"] if role == "executor" else [t for t in cfg["tools"] if t not in ("Edit", "Write")]
     if role == "judge":  # reads the repository to check the change, runs and edits nothing
         tools = allowed = ["Read", "Glob", "Grep"]
-    cmd = [
+    cmd = [  # the prompt goes on stdin: command lines are visible to every process on the machine
         cfg["binary"],
         "-p",
-        prompt_text,
         "--model",
         model,
         "--output-format",
@@ -117,14 +116,18 @@ async def run(
     transcript.parent.mkdir(parents=True, exist_ok=True)
     start = time.monotonic()
     proc = await asyncio.create_subprocess_exec(
-        *command(prompt_text, model, max_budget_usd, role),
+        *command(model, max_budget_usd, role),
         cwd=cwd,
         env=clean,
-        stdin=asyncio.subprocess.DEVNULL,
+        stdin=asyncio.subprocess.PIPE,
         stdout=asyncio.subprocess.PIPE,
         stderr=asyncio.subprocess.PIPE,
         start_new_session=True,
     )
+    assert proc.stdin
+    proc.stdin.write(prompt_text.encode())
+    await proc.stdin.drain()
+    proc.stdin.close()
     lines: list[str] = []
     timed_out = False
 

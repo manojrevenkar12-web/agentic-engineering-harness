@@ -1,0 +1,1 @@
+budget_as_float: stores and compares the budget as a float (double precision column, float model field), which AGENTS.md forbids for money (Decimal, 8 places, half up).

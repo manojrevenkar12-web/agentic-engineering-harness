@@ -20,7 +20,10 @@ function Rows({ items, label, scale }: { items: [string, Diff][]; label: (k: str
               <div className={s.dot} style={{ left: `${scale.at(d.diff ?? 0)}%` }} />
             </div>
             <span className={s.num}>
-              {points(d.diff ?? 0)} ({points(lo)} to {points(hi)})
+              {points(d.diff ?? 0)}
+              <span className={s.range}>
+                {Math.round(100 * lo)} to {Math.round(100 * hi)}
+              </span>
             </span>
           </div>
         );
@@ -48,8 +51,8 @@ export function Certainty({ r }: { r: Results }) {
         </>
       ) : null}
       <p className={s.note}>
-        Points are percentage points of tasks; bars are {Math.round(dev.confidence * 100)}% bootstrap intervals over tasks. A bar that crosses zero is a
-        difference this many tasks cannot tell from noise.
+        Points are percentage points of tasks; bars are {Math.round(dev.confidence * 100)}% bootstrap intervals over tasks. A bar that
+        crosses zero is a difference this many tasks cannot tell from noise.
       </p>
     </figure>
   );

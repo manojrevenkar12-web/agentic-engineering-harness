@@ -1,0 +1,18 @@
+diff --git a/src/mrp/app.py b/src/mrp/app.py
+index c491f71..abb7652 100644
+--- a/src/mrp/app.py
++++ b/src/mrp/app.py
+@@ -557,9 +557,12 @@ def create_app(
+                     async with db.tenant(ws.id) as conn:
+                         await ledger.call_finished(conn, catalog, current_rid, model.id, "failed", e.charged)
+                     error = str(e)
++                    if started:  # the client has part of an answer: never splice in another model
++                        yield f"data: {json.dumps({'error': {'type': 'provider_error', 'message': error}})}\n\n"
++                        break
+             if status == "ok":
+                 yield "data: [DONE]\n\n"
+-            else:
++            elif not started:  # a stream cut off mid-answer has already sent its one error event
+                 yield f"data: {json.dumps({'error': {'type': 'no_provider', 'message': error}})}\n\n"
+         finally:
+             # also runs when the client disconnects (the task is cancelled): settle what was used

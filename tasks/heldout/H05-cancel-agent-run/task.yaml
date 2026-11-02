@@ -1,0 +1,4 @@
+id: H05-cancel-agent-run
+title: "Cancel an agent run"
+kind: feature
+target: model-router-platform

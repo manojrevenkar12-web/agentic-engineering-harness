@@ -1,0 +1,3 @@
+request_actual_cost: stores the request's total actual cost, which includes the escalated cheap first try, so a later hit is billed for calls that did not produce the answer.
+routed_primary_prices: prices the answer with the routed primary model, which is wrong after a fallback answered instead.
+estimated_tokens: recomputes the cost from token estimates instead of the provider-reported tokens, so hits are still billed from an estimate.

@@ -30,6 +30,10 @@ def toy(tmp_path, monkeypatch):
         base = DB.rsplit("/", 1)[0]
         monkeypatch.setenv("AEH_DATABASE_ADMIN_URL", base + "/postgres")
         monkeypatch.setenv("AEH_RECORD_URL", DB)
+        import psycopg
+
+        with psycopg.connect(DB, autocommit=True) as c:  # every test starts from an empty record
+            c.execute("DROP SCHEMA IF EXISTS aeh CASCADE")
     paths["script"] = script
     return paths
 

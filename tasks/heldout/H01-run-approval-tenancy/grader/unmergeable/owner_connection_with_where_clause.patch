@@ -1,0 +1,51 @@
+diff --git a/src/mrp/agents.py b/src/mrp/agents.py
+index 2b08b51..7bf26cf 100644
+--- a/src/mrp/agents.py
++++ b/src/mrp/agents.py
+@@ -290,17 +290,30 @@ class Runner:
+     async def decide(
+         self, workspace_id: uuid.UUID, run_id: uuid.UUID, step_no: int, approve: bool, who: str
+     ) -> None:
+-        # one short owner transaction: the decision and the re-queue must commit together
++        """Records a person's decision on a step waiting for approval and re-queues the run.
++
++        Raises LookupError when the workspace has no such run (row-level security hides other
++        workspaces' runs) and ValueError when the step has nothing pending."""
+         async with self.db.owner() as conn:
++            if (
++                await conn.fetchval(
++                    "SELECT 1 FROM mrp.agent_runs WHERE id = $1 AND workspace_id = $2", run_id, workspace_id
++                )
++                is None
++            ):
++                raise LookupError("no such run")
+             n = await conn.execute(
+-                "UPDATE mrp.run_steps SET status = $3, decided_by = $4 WHERE run_id = $1 AND step_no = $2 AND status = 'waiting_approval'",
++                "UPDATE mrp.run_steps SET status = $3, decided_by = $4 WHERE run_id = $1 AND step_no = $2 AND workspace_id = $5 AND status = 'waiting_approval'",
+                 run_id,
+                 step_no,
+                 "approved" if approve else "rejected",
+                 who,
++                workspace_id,
+             )
+             if n.endswith("0"):
+                 raise ValueError("no approval is pending for this step")
+             await conn.execute(
+-                "UPDATE mrp.agent_runs SET status = 'queued', updated_at = now() WHERE id = $1", run_id
++                "UPDATE mrp.agent_runs SET status = 'queued', updated_at = now() WHERE id = $1 AND workspace_id = $2",
++                run_id,
++                workspace_id,
+             )
+diff --git a/src/mrp/app.py b/src/mrp/app.py
+index 1d009f9..3104137 100644
+--- a/src/mrp/app.py
++++ b/src/mrp/app.py
+@@ -697,6 +697,8 @@ def create_app(
+             await Runner(db, catalog, table, state["providers"], connectors=None).decide(
+                 ws.id, run_id, step_no, decision == "approve", x_mrp_user
+             )
++        except LookupError as e:
++            raise HTTPException(404, "no such run") from e
+         except ValueError as e:
+             raise HTTPException(409, str(e)) from e
+         await state["arq"].enqueue_job(

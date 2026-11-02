@@ -86,11 +86,17 @@ def test_the_spend_log_is_append_only(toy):
     import psycopg
 
     from aeh import store
+    from aeh.orchestrate import plan, reservation
+    from aeh.tasks import load_set
 
     conn = store.connect()
     store.migrate(conn)
+    store.create_run(conn, "toy-log", "toyset", 50.0, plan(load_set("toyset"), ["haiku-solo"], 1, 7), {})
+    assert store.claim(conn, "toy-log", "w", reservation, lease_s=60) is not None
     with pytest.raises(psycopg.errors.RaiseException):
         conn.execute("UPDATE aeh.spend SET amount_usd = 0")
+    with pytest.raises(psycopg.errors.RaiseException):
+        conn.execute("DELETE FROM aeh.spend")
 
 
 def test_a_wrong_patch_is_not_accepted(toy):

@@ -1,0 +1,14 @@
+diff --git a/src/mrp/app.py b/src/mrp/app.py
+index c491f71..1d009f9 100644
+--- a/src/mrp/app.py
++++ b/src/mrp/app.py
+@@ -557,6 +557,9 @@ def create_app(
+                     async with db.tenant(ws.id) as conn:
+                         await ledger.call_finished(conn, catalog, current_rid, model.id, "failed", e.charged)
+                     error = str(e)
++                    if started:  # the client has part of an answer: never splice in another model
++                        yield f"data: {json.dumps({'error': {'type': 'provider_error', 'message': error}})}\n\n"
++                        break
+             if status == "ok":
+                 yield "data: [DONE]\n\n"
+             else:

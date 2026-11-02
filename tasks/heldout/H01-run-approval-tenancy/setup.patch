@@ -1,0 +1,14 @@
+diff --git a/src/mrp/agents.py b/src/mrp/agents.py
+index e65307a..2b08b51 100644
+--- a/src/mrp/agents.py
++++ b/src/mrp/agents.py
+@@ -290,7 +290,8 @@ class Runner:
+     async def decide(
+         self, workspace_id: uuid.UUID, run_id: uuid.UUID, step_no: int, approve: bool, who: str
+     ) -> None:
+-        async with self.db.tenant(workspace_id) as conn:
++        # one short owner transaction: the decision and the re-queue must commit together
++        async with self.db.owner() as conn:
+             n = await conn.execute(
+                 "UPDATE mrp.run_steps SET status = $3, decided_by = $4 WHERE run_id = $1 AND step_no = $2 AND status = 'waiting_approval'",
+                 run_id,

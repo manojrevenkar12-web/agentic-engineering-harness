@@ -50,3 +50,12 @@ def test_without_tools_behaviour_is_unchanged():
     msgs = [{"role": "system", "content": "s"}] + [{"role": "user" if i % 2 == 0 else "assistant", "content": LONG} for i in range(12)]
     out, _ = compress(msgs, budget_tokens=500)
     assert out[2:] == msgs[-4:]
+
+
+def test_many_system_messages_and_few_turns_keep_every_turn():
+    msgs = [{"role": "system", "content": f"rule {i}. " + LONG} for i in range(4)] + [
+        {"role": "user", "content": LONG},
+        {"role": "assistant", "content": LONG},
+    ]
+    out, _ = compress(msgs, budget_tokens=500)
+    assert [m for m in out if m["role"] != "system"] == msgs[4:]

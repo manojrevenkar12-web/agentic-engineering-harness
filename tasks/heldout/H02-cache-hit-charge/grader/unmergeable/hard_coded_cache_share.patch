@@ -1,0 +1,30 @@
+diff --git a/src/mrp/app.py b/src/mrp/app.py
+index 805d6a9..06e102c 100644
+--- a/src/mrp/app.py
++++ b/src/mrp/app.py
+@@ -471,7 +471,8 @@ def create_app(
+                     messages,
+                     comp.text,
+                     model.id,
+-                    route.estimated_cost,
++                    # a later hit is billed from what this answer actually cost, not from the estimate
++                    model.cost(comp.tokens_in, comp.tokens_out),
+                     semantic,
+                 )
+         log.info(
+diff --git a/src/mrp/ledger.py b/src/mrp/ledger.py
+index 146bdbe..b8ee451 100644
+--- a/src/mrp/ledger.py
++++ b/src/mrp/ledger.py
+@@ -233,9 +233,8 @@ async def record_cache_hit(
+ ) -> Decimal:
+     """Settles a pending request as a cache hit: no provider spend; the customer pays a share of
+     what the original call actually cost; the avoided cost is kept as an estimate for reporting."""
+-    billed = (original_cost * catalog.cached_answer_charge * (1 + plan.markup)).quantize(
+-        CENT8, rounding=ROUND_HALF_UP
+-    )
++    # the pricing page promises 10% of the original answer's cost
++    billed = (original_cost * Decimal("0.10") * (1 + plan.markup)).quantize(CENT8, rounding=ROUND_HALF_UP)
+     await conn.execute(
+         "UPDATE mrp.usage SET status = 'cache_hit', model = $2, actual_cost = 0, avoided_cost_est = $3, billed_amount = $4, settled_at = now() WHERE id = $1",
+         usage_id,

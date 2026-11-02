@@ -1,0 +1,83 @@
+diff --git a/src/mrp/agents.py b/src/mrp/agents.py
+index e65307a..71fb64b 100644
+--- a/src/mrp/agents.py
++++ b/src/mrp/agents.py
+@@ -13,6 +13,8 @@ Slack) executed by a worker. The guarantees:
+   the run's limit, or the run stops as budget_exhausted.
+ - **Human approval.** Tools with external effects (email to people outside the company) pause the
+   run until someone approves or rejects the exact call; the decision is recorded on the step.
++- **Cancellation.** A cancelled run never starts another step: the worker checks before each step,
++  and nothing (a finish, an approval) moves a run out of `cancelled`.
+ """
+ 
+ from __future__ import annotations
+@@ -140,7 +142,7 @@ class Runner:
+         async with self.db.tenant(workspace_id) as conn:
+             await conn.execute(
+                 "UPDATE mrp.agent_runs SET status = $2, lease_owner = NULL, lease_until = NULL, updated_at = now(), "
+-                "result = coalesce(result, '{}'::jsonb) || $3::jsonb WHERE id = $1",
++                "result = coalesce(result, '{}'::jsonb) || $3::jsonb WHERE id = $1 AND status <> 'cancelled'",
+                 run_id,
+                 status,
+                 result or {},
+@@ -276,6 +278,27 @@ class Runner:
+         await self._finish(workspace_id, run_id, "succeeded")
+         return "succeeded"
+ 
++    async def _cancelled(self, workspace_id: uuid.UUID, run_id: uuid.UUID) -> bool:
++        async with self.db.tenant(workspace_id) as conn:
++            cancelled = await conn.fetchval(
++                "UPDATE mrp.agent_runs SET lease_owner = NULL, lease_until = NULL WHERE id = $1 AND status = 'cancelled' RETURNING true",
++                run_id,
++            )
++        return bool(cancelled)
++
++    async def cancel(self, workspace_id: uuid.UUID, run_id: uuid.UUID) -> None:
++        """Cancels a run that has not ended. Raises LookupError when the workspace has no such run
++        and ValueError when the run has already ended."""
++        async with self.db.tenant(workspace_id) as conn:
++            status = await conn.fetchval("SELECT status FROM mrp.agent_runs WHERE id = $1 FOR UPDATE", run_id)
++            if status is None:
++                raise LookupError("no such run")
++            if status not in ("queued", "running", "waiting_approval"):
++                raise ValueError(f"the run has already ended ({status})")
++            await conn.execute(
++                "UPDATE mrp.agent_runs SET status = 'cancelled', updated_at = now() WHERE id = $1", run_id
++            )
++
+     async def _checkpoint_wait(self, workspace_id, run_id, step_no, name, step) -> None:
+         async with self.db.tenant(workspace_id) as conn:
+             await conn.execute(
+@@ -291,6 +314,9 @@ class Runner:
+         self, workspace_id: uuid.UUID, run_id: uuid.UUID, step_no: int, approve: bool, who: str
+     ) -> None:
+         async with self.db.tenant(workspace_id) as conn:
++            status = await conn.fetchval("SELECT status FROM mrp.agent_runs WHERE id = $1 FOR UPDATE", run_id)
++            if status == "cancelled":
++                raise ValueError("the run was cancelled")
+             n = await conn.execute(
+                 "UPDATE mrp.run_steps SET status = $3, decided_by = $4 WHERE run_id = $1 AND step_no = $2 AND status = 'waiting_approval'",
+                 run_id,
+diff --git a/src/mrp/app.py b/src/mrp/app.py
+index 1d009f9..789bd4d 100644
+--- a/src/mrp/app.py
++++ b/src/mrp/app.py
+@@ -681,6 +681,18 @@ def create_app(
+             "steps": [{**dict(r), "cost": str(r["cost"])} for r in steps],
+         }
+ 
++    @app.post("/v1/agents/runs/{run_id}/cancel")
++    async def cancel_run(run_id: uuid.UUID, ws: Workspace = Depends(workspace)):
++        from mrp.agents import Runner
++
++        try:
++            await Runner(db, catalog, table, state["providers"], connectors=None).cancel(ws.id, run_id)
++        except LookupError as e:
++            raise HTTPException(404, "no such run") from e
++        except ValueError as e:
++            raise HTTPException(409, str(e)) from e
++        return {"run_id": str(run_id), "status": "cancelled"}
++
+     @app.post("/v1/agents/runs/{run_id}/steps/{step_no}/{decision}")
+     async def decide_step(
+         run_id: uuid.UUID,

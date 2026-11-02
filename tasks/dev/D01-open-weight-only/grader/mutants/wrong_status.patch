@@ -1,5 +1,5 @@
 diff --git a/src/mrp/app.py b/src/mrp/app.py
-index 1d009f9..5c22810 100644
+index 1d009f9..fc4bdfd 100644
 --- a/src/mrp/app.py
 +++ b/src/mrp/app.py
 @@ -99,6 +99,7 @@ class Options(BaseModel):
@@ -31,3 +31,12 @@ index 1d009f9..5c22810 100644
          return router.decide(
              catalog, table, task, target, tin, tout, max_cost, allowed, cascade=not req.stream
          )
+@@ -366,6 +373,8 @@ def create_app(
+                 hit = await state["cache"].get(
+                     conn, str(ws.id), route.task, req.mrp.quality, messages, semantic
+                 )
++                if hit and req.mrp.open_weight_only and not (hit.model in catalog.models and catalog.models[hit.model].open_weight):
++                    hit = None  # an answer a closed model produced may not serve this request
+                 if hit:
+                     body = response_body(hit.response, hit.model, 0, 0, route.task)
+                     billed = await ledger.record_cache_hit(

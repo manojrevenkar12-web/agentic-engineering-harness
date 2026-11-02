@@ -105,10 +105,22 @@ async def prove(set_name: str, judge: bool = True, only: list[str] | None = None
             print(f"proved {t.id}: {'proven' if r['proven'] else 'NOT proven'}", flush=True)
             return r
 
-    results = await asyncio.gather(*(guarded(t) for t in tasks))
+    results = list(await asyncio.gather(*(guarded(t) for t in tasks)))
+    out = reports_dir() / "proofs" / f"{set_name}.json"
+    if only and judge and out.exists():  # re-proving some tasks keeps the others' recorded proofs
+        kept = [t for t in json.loads(out.read_text())["tasks"] if t["task"] not in {r["task"] for r in results}]
+        results = sorted(kept + results, key=lambda t: t["task"])
+    report = {"summary": summarize(set_name, results, judge), "tasks": results}
+    if judge:
+        out.parent.mkdir(parents=True, exist_ok=True)
+        out.write_text(json.dumps(report, indent=1))
+    return report
+
+
+def summarize(set_name: str, results: list[dict], judge: bool) -> dict:
     refs = [r["reference"]["judge"] for r in results if r["reference"]["judge"] is not None]
     unm = [u for r in results for u in r["unmergeable"] if u["tests_pass"]]
-    summary = {
+    return {
         "set": set_name,
         "tasks": len(results),
         "proven": sum(r["proven"] for r in results),
@@ -123,12 +135,6 @@ async def prove(set_name: str, judge: bool = True, only: list[str] | None = None
         "judge_cost_usd": round(sum(r["judge_cost_usd"] for r in results), 4),
         "with_judge": judge,
     }
-    report = {"summary": summary, "tasks": results}
-    out = reports_dir() / "proofs" / f"{set_name}.json"
-    if judge and not only:
-        out.parent.mkdir(parents=True, exist_ok=True)
-        out.write_text(json.dumps(report, indent=1))
-    return report
 
 
 def proven_ids(set_name: str) -> set[str]:

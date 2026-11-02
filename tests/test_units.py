@@ -85,14 +85,15 @@ def test_last_json_takes_the_final_object():
 
 
 def test_least_privilege_flags():
-    ex = agent.command("p", "haiku", 1.0, "executor")
+    ex = agent.command("haiku", 1.0, "executor")
     assert "--restricted" in ex and ex[ex.index("--permission-mode") + 1] == "dontAsk"
+    assert ex[ex.index("-p") + 1].startswith("--")  # the prompt is not on the command line
     allowed = ex[ex.index("--allowedTools") + 1 :]
     assert "Bash" not in allowed and all(not a.startswith("Bash(") or a.endswith(":*)") for a in allowed)
     assert ex[ex.index("--max-budget-usd") + 1] == "1.00"
-    rv = agent.command("p", "haiku", 1.0, "reviewer")
+    rv = agent.command("haiku", 1.0, "reviewer")
     assert "Edit" not in rv[rv.index("--tools") + 1] and "Write" not in rv[rv.index("--tools") + 1]
-    j = agent.command("p", "sonnet", 0.4, "judge")
+    j = agent.command("sonnet", 0.4, "judge")
     assert j[j.index("--tools") + 1] == "Read,Glob,Grep" and j[j.index("--allowedTools") + 1 :] == [
         "Read",
         "Glob",

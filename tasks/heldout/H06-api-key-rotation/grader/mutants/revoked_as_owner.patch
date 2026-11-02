@@ -1,0 +1,74 @@
+diff --git a/src/mrp/app.py b/src/mrp/app.py
+index 1d009f9..06407a6 100644
+--- a/src/mrp/app.py
++++ b/src/mrp/app.py
+@@ -175,11 +175,14 @@ def create_app(
+ 
+     # ---- auth --------------------------------------------------------------------------------------
+ 
++    def key_hash(authorization: str) -> str:
++        return hashlib.sha256(authorization.removeprefix("Bearer ").strip().encode()).hexdigest()
++
+     async def workspace(authorization: str = Header("")) -> Workspace:
+         token = authorization.removeprefix("Bearer ").strip()
+         if not token.startswith("mrp_"):
+             raise HTTPException(401, "missing or malformed API key")
+-        found = await db.authenticate(hashlib.sha256(token.encode()).hexdigest())
++        found = await db.authenticate(key_hash(token))
+         if not found:
+             raise HTTPException(401, "invalid or revoked API key")
+         return Workspace(*found)
+@@ -643,6 +646,44 @@ def create_app(
+             n = await conn.execute("DELETE FROM mrp.provider_keys WHERE provider = $1", provider)
+         return {"deleted": n.endswith("1")}
+ 
++    # ---- the workspace's own API keys -------------------------------------------------------------------
++    # Only the SHA-256 of a key is stored; the key itself is in the creating response and nowhere else.
++
++    @app.post("/v1/api-keys")
++    async def create_api_key(ws: Workspace = Depends(workspace)):
++        key_id, api_key = uuid.uuid4(), "mrp_" + pysecrets.token_urlsafe(32)
++        async with db.tenant(ws.id) as conn:
++            await conn.execute(
++                "INSERT INTO mrp.api_keys (id, workspace_id, key_hash, prefix) VALUES ($1, $2, $3, $4)",
++                key_id, ws.id, key_hash(api_key), api_key[:8],
++            )  # fmt: skip
++        log.info("api key %s created ws=%s", key_id, ws.id)
++        return {"id": str(key_id), "api_key": api_key, "prefix": api_key[:8], "note": "the key is shown once"}
++
++    @app.get("/v1/api-keys")
++    async def list_api_keys(ws: Workspace = Depends(workspace)):
++        async with db.tenant(ws.id) as conn:
++            rows = await conn.fetch(
++                "SELECT id, prefix, created_at, revoked_at FROM mrp.api_keys ORDER BY created_at, id"
++            )
++        return [{**dict(r), "id": str(r["id"])} for r in rows]
++
++    @app.delete("/v1/api-keys/{key_id}")
++    async def revoke_api_key(
++        key_id: uuid.UUID, ws: Workspace = Depends(workspace), authorization: str = Header("")
++    ):
++        async with db.owner() as conn:
++            row = await conn.fetchrow("SELECT key_hash FROM mrp.api_keys WHERE id = $1 FOR UPDATE", key_id)
++            if row is None:
++                raise HTTPException(404, "no such key")
++            if row["key_hash"] == key_hash(authorization):
++                raise HTTPException(409, "this key is making the request; revoke it with another key")
++            await conn.execute(
++                "UPDATE mrp.api_keys SET revoked_at = coalesce(revoked_at, now()) WHERE id = $1", key_id
++            )
++        log.info("api key %s revoked ws=%s", key_id, ws.id)
++        return {"id": str(key_id), "revoked": True}
++
+     # ---- agent runs ----------------------------------------------------------------------------------
+ 
+     @app.post("/v1/agents/runs", status_code=202)
+@@ -718,7 +759,7 @@ def create_app(
+             )
+             await conn.execute(
+                 "INSERT INTO mrp.api_keys (id, workspace_id, key_hash, prefix) VALUES ($1, $2, $3, $4)",
+-                uuid.uuid4(), wid, hashlib.sha256(api_key.encode()).hexdigest(), api_key[:8],
++                uuid.uuid4(), wid, key_hash(api_key), api_key[:8],
+             )  # fmt: skip
+         return {"workspace_id": str(wid), "api_key": api_key, "note": "the key is shown once"}
+ 

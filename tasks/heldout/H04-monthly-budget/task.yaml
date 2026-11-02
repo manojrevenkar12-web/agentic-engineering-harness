@@ -1,0 +1,4 @@
+id: H04-monthly-budget
+title: "Monthly spend budget per workspace"
+kind: feature
+target: model-router-platform

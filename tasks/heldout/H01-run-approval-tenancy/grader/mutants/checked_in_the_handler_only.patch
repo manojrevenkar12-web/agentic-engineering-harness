@@ -1,0 +1,17 @@
+diff --git a/src/mrp/app.py b/src/mrp/app.py
+index 1d009f9..dde66af 100644
+--- a/src/mrp/app.py
++++ b/src/mrp/app.py
+@@ -693,8 +693,12 @@ def create_app(
+             raise HTTPException(404, "approve or reject")
+         from mrp.agents import Runner
+ 
++        async with db.tenant(ws.id) as conn:
++            if await conn.fetchval("SELECT 1 FROM mrp.agent_runs WHERE id = $1", run_id) is None:
++                raise HTTPException(404, "no such run")
+         try:
+             await Runner(db, catalog, table, state["providers"], connectors=None).decide(
++
+                 ws.id, run_id, step_no, decision == "approve", x_mrp_user
+             )
+         except ValueError as e:

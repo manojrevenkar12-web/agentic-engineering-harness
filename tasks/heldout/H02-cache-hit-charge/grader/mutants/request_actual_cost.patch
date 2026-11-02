@@ -1,0 +1,13 @@
+diff --git a/src/mrp/app.py b/src/mrp/app.py
+index 805d6a9..91241ff 100644
+--- a/src/mrp/app.py
++++ b/src/mrp/app.py
+@@ -471,7 +471,7 @@ def create_app(
+                     messages,
+                     comp.text,
+                     model.id,
+-                    route.estimated_cost,
++                    actual,
+                     semantic,
+                 )
+         log.info(

@@ -8,6 +8,7 @@ export function TaskMatrix({ r }: { r: Results }) {
   const setups = Object.keys(dev.per_task);
   const tasks = [...new Set(setups.flatMap((k) => Object.keys(dev.per_task[k])))].sort();
   return (
+    // biome-ignore lint/a11y/noNoninteractiveTabindex: a table that scrolls sideways must be reachable by keyboard
     <section className={s.wrap} aria-label="Merged changes by task and setup" tabIndex={0}>
       <table className={s.table}>
         <thead>

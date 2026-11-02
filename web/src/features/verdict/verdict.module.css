@@ -1,37 +1,180 @@
-.hero { display: grid; gap: var(--space-5); }
-.decision { margin: 0; font-size: var(--step-2); line-height: var(--leading-tight); max-width: 36ch; font-weight: 600; }
-.why { margin: 0; color: var(--muted); }
-.chart { margin: 0; background: var(--surface); border: var(--border); border-radius: var(--radius-m); padding: var(--space-5); }
-.head, .row { display: grid; grid-template-columns: minmax(11rem, 15rem) 1fr minmax(8rem, 10rem); column-gap: var(--space-5); align-items: center; }
-.head { color: var(--muted); font-size: var(--step--1); padding-bottom: var(--space-2); border-bottom: 1px solid var(--grid); }
-.row { padding-block: var(--space-3); border-bottom: 1px dashed var(--grid); }
-.row:last-of-type { border-bottom: 0; }
-.chosen .name { color: var(--accent); }
-.name { font-weight: 650; }
-.sub { display: block; color: var(--muted); font-size: var(--step--1); }
-.track { position: relative; height: var(--space-6); margin-inline: var(--space-3); }
-.base { position: absolute; top: 50%; left: 0; right: 0; border-top: 1px solid var(--grid); }
-.gap { position: absolute; top: calc(50% - 3px); height: 6px; background: var(--bad-soft); border-block: 1px solid var(--bad); }
-.ci { position: absolute; top: calc(50% - 1px); height: 2px; background: var(--accent); opacity: 0.45; }
-.pass, .acc { position: absolute; top: 50%; width: var(--space-3); height: var(--space-3); margin: calc(var(--space-3) / -2) 0 0 calc(var(--space-3) / -2); border-radius: 50%; }
-.pass { background: var(--surface); border: 2px solid var(--neutral); }
-.acc { background: var(--accent); }
-.cost { text-align: right; font-variant-numeric: tabular-nums; }
-.cost b { display: block; color: var(--money); font-size: var(--step-1); }
-.cost span { color: var(--muted); font-size: var(--step--1); }
-.axis { display: grid; grid-template-columns: minmax(11rem, 15rem) 1fr minmax(8rem, 10rem); column-gap: var(--space-5); margin-top: var(--space-2); }
-.axisTrack { position: relative; height: var(--space-5); margin-inline: var(--space-3); border-top: 1px solid var(--rule); }
-.tick { position: absolute; top: var(--space-1); transform: translateX(-50%); font-size: var(--step--1); color: var(--muted); }
-.legend { display: flex; flex-wrap: wrap; gap: var(--space-2) var(--space-5); margin: var(--space-4) 0 0; padding: 0; list-style: none; font-size: var(--step--1); color: var(--muted); }
-.legend li { display: inline-flex; align-items: center; gap: var(--space-2); }
-.k { display: inline-block; width: var(--space-3); height: var(--space-3); border-radius: 50%; }
-.kPass { border: 2px solid var(--neutral); }
-.kAcc { background: var(--accent); }
-.kGap { width: var(--space-5); height: 6px; border-radius: 0; background: var(--bad-soft); border-block: 1px solid var(--bad); }
-@media (max-width: 760px) {
-  .head { display: none; }
-  .row, .axis { grid-template-columns: 1fr; row-gap: var(--space-2); }
-  .cost { text-align: left; }
-  .axis > :first-child, .axis > :last-child { display: none; }
+.hero {
+  display: grid;
+  gap: var(--space-5);
 }
-.right { text-align: right; }
+.decision {
+  margin: 0;
+  font-size: var(--step-2);
+  line-height: var(--leading-tight);
+  max-width: 36ch;
+  font-weight: 600;
+}
+.why {
+  margin: 0;
+  color: var(--muted);
+}
+.chart {
+  margin: 0;
+  background: var(--surface);
+  border: var(--border);
+  border-radius: var(--radius-m);
+  padding: var(--space-5);
+}
+.head,
+.row {
+  display: grid;
+  grid-template-columns: minmax(11rem, 15rem) 1fr minmax(8rem, 10rem);
+  column-gap: var(--space-5);
+  align-items: center;
+}
+.head {
+  color: var(--muted);
+  font-size: var(--step--1);
+  padding-bottom: var(--space-2);
+  border-bottom: 1px solid var(--grid);
+}
+.row {
+  padding-block: var(--space-3);
+  border-bottom: 1px dashed var(--grid);
+}
+.row:last-of-type {
+  border-bottom: 0;
+}
+.name {
+  font-weight: 650;
+}
+.chosen .name {
+  color: var(--accent);
+}
+.sub {
+  display: block;
+  color: var(--muted);
+  font-size: var(--step--1);
+}
+.track {
+  position: relative;
+  height: var(--space-6);
+  margin-inline: var(--space-3);
+}
+.base {
+  position: absolute;
+  top: 50%;
+  left: 0;
+  right: 0;
+  border-top: 1px solid var(--grid);
+}
+.gap {
+  position: absolute;
+  top: calc(50% - 3px);
+  height: 6px;
+  background: var(--bad-soft);
+  border-block: 1px solid var(--bad);
+}
+.ci {
+  position: absolute;
+  top: calc(50% - 1px);
+  height: 2px;
+  background: var(--accent);
+  opacity: 0.45;
+}
+.pass,
+.acc {
+  position: absolute;
+  top: 50%;
+  width: var(--space-3);
+  height: var(--space-3);
+  margin: calc(var(--space-3) / -2) 0 0 calc(var(--space-3) / -2);
+  border-radius: 50%;
+}
+.pass {
+  background: var(--surface);
+  border: 2px solid var(--neutral);
+}
+.acc {
+  background: var(--accent);
+}
+.cost {
+  text-align: right;
+}
+.cost b {
+  display: block;
+  color: var(--money);
+  font-size: var(--step-1);
+}
+.cost span {
+  color: var(--muted);
+  font-size: var(--step--1);
+}
+.axis {
+  display: grid;
+  grid-template-columns: minmax(11rem, 15rem) 1fr minmax(8rem, 10rem);
+  column-gap: var(--space-5);
+  margin-top: var(--space-2);
+}
+.axisTrack {
+  position: relative;
+  height: var(--space-5);
+  margin-inline: var(--space-3);
+  border-top: 1px solid var(--rule);
+}
+.tick {
+  position: absolute;
+  top: var(--space-1);
+  transform: translateX(-50%);
+  font-size: var(--step--1);
+  color: var(--muted);
+}
+.legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2) var(--space-5);
+  margin: var(--space-4) 0 0;
+  padding: 0;
+  list-style: none;
+  font-size: var(--step--1);
+  color: var(--muted);
+}
+.legend li {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+.k {
+  display: inline-block;
+  width: var(--space-3);
+  height: var(--space-3);
+  border-radius: 50%;
+}
+.kPass {
+  border: 2px solid var(--neutral);
+}
+.kAcc {
+  background: var(--accent);
+}
+.kGap {
+  width: var(--space-5);
+  height: 6px;
+  border-radius: 0;
+  background: var(--bad-soft);
+  border-block: 1px solid var(--bad);
+}
+@media (max-width: 760px) {
+  .head {
+    display: none;
+  }
+  .row,
+  .axis {
+    grid-template-columns: 1fr;
+    row-gap: var(--space-2);
+  }
+  .cost {
+    text-align: left;
+  }
+  .axis > :first-child,
+  .axis > :last-child {
+    display: none;
+  }
+}
+.right {
+  text-align: right;
+}

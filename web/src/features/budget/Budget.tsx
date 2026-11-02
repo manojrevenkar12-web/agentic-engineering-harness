@@ -21,7 +21,8 @@ export function Budget({ r }: { r: Results }) {
       <div className={s.fact}>
         <b>{ok ? "Balanced" : "Check"}</b>
         <span>
-          {dev.ledgers.map((l) => `${l.run}: ${usd(l.committed_usd)} of ${usd(l.budget_usd)} budget`).join("; ")}; the spend log matches the record
+          {dev.ledgers.map((l) => `${l.run}: ${usd(l.committed_usd)} of ${usd(l.budget_usd)} budget`).join("; ")}; the spend log matches the
+          record
         </span>
       </div>
       <div className={s.fact}>

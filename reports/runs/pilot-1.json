@@ -1,0 +1,1357 @@
+{
+ "run": "pilot-1",
+ "task_set": "dev",
+ "budget_usd": 15.0,
+ "config": {
+  "seed": 7,
+  "setups": [
+   "haiku-solo",
+   "haiku-review",
+   "haiku-best2",
+   "sonnet-solo",
+   "sonnet-review"
+  ],
+  "samples": 1
+ },
+ "ledger": {
+  "open_reservations_match": true,
+  "settled_match": true,
+  "abandoned_usd": 0.0,
+  "committed_usd": 0.61698,
+  "budget_usd": 15.0,
+  "within_budget": true
+ },
+ "attempts": [
+  {
+   "id": 1,
+   "run_id": "pilot-1",
+   "task_id": "D06-provider-keys-tenancy",
+   "setup": "sonnet-solo",
+   "sample": 1,
+   "position": 0,
+   "state": "done",
+   "tries": 1,
+   "reserved_usd": 0.0,
+   "cost_usd": 0.070357,
+   "judge_cost_usd": 0.018489,
+   "abandoned_usd": 0.0,
+   "outcome": {
+    "notes": {},
+    "sessions": [
+     {
+      "ok": true,
+      "role": "executor",
+      "error": "",
+      "turns": 9,
+      "result": "`GET /v1/provider-keys` now returns only the calling workspace's keys. I couldn't run any tests or `scripts/check.sh --fast`, because Bash was denied in this session. Neither the fix nor the new test has been run.\n\n**Cause:** `list_keys` in `src/mrp/app.py` read the table through `db.owner()`. That role skips the row-level security on `mrp.provider_keys`, and the query had no workspace filter, so it returned every workspace's rows.\n\n**Fix:** I changed that one call to `db.tenant(ws.id)`. This is what `put_key` and `delete_key` already do, and `AGENTS.md` requires it on the request path. Row-level security now does the filtering. I didn't add a `WHERE` clause.\n\n**Test:** I added `test_listing_provider_keys_shows_only_own_workspace` to `tests/test_secrets.py`, next to the existing key tests. It creates two workspaces on the team plan and stores a key in the first. The first workspace's listing must have exactly one entry, and the second workspace's listing must be empty. No existing test was changed.\n\n**To verify:** Run `python -m pytest tests/test_secrets.py -m invariant` and `scripts/check.sh --fast`, or approve Bash and I'll run them.\n\n**Not changed:** The admin key-rotation endpoint also uses `db.owner()` to read every workspace's keys. That looks intentional for a cross-workspace job, so I left it alone.",
+      "denials": [
+       {
+        "tool_name": "Bash",
+        "tool_input": {
+         "command": "python - <<'E'\np='src/mrp/app.py'\ns=open(p).read()\ns=s.replace(\"\"\"    async def list_keys(ws: Workspace = Depends(workspace)):\n        async with db.owner() as conn:\"\"\",\"\"\"    async def list_keys(ws: Workspace = Depends(workspace)):\n        async with db.tenant(ws.id) as conn:\"\"\")\nopen(p,'w').write(s)\nE\ngrep -n \"provider-keys\\|^def \\|^async def \\|^import\\|^from\\|fixture\" tests/test_secrets.py | head -40; ls tests"
+        },
+        "tool_use_id": "toolu_016iKkCU6qK7HqHXbenanSqP"
+       },
+       {
+        "tool_name": "Bash",
+        "tool_input": {
+         "command": "python -m pytest tests/test_secrets.py -q 2>&1 | tail -8; scripts/check.sh --fast 2>&1 | tail -8"
+        },
+        "tool_use_id": "toolu_018BaFtJrruKGWWt8pGK1YLW"
+       }
+      ],
+      "cost_usd": 0.070357,
+      "tokens_in": 72829,
+      "duration_s": 18.3,
+      "tokens_out": 1872,
+      "tool_calls": 8,
+      "transcript": "/tmp/aeh/runs/pilot-1/D06-provider-keys-tenancy/sonnet-solo/s1/executor.jsonl"
+     }
+    ]
+   },
+   "grade": {
+    "diff": {
+     "files": [
+      "src/mrp/app.py",
+      "tests/test_secrets.py"
+     ],
+     "findings": [],
+     "lines_added": 9,
+     "tests_added": 0,
+     "lines_removed": 1
+    },
+    "judge": {
+     "agree": true,
+     "votes": [
+      {
+       "ok": true,
+       "blocking": [],
+       "mergeable": true
+      }
+     ],
+     "cost_usd": 0.018489,
+     "mergeable": true,
+     "unavailable": false
+    },
+    "hidden": {
+     "failed": 0,
+     "passed": 2,
+     "skipped": 0
+    },
+    "static": {
+     "lint": {
+      "ok": true,
+      "tail": [
+       "All checks passed!"
+      ]
+     },
+     "types": {
+      "ok": true,
+      "tail": [
+       "Success: no issues found in 27 source files"
+      ]
+     },
+     "format": {
+      "ok": true,
+      "tail": [
+       "36 files already formatted"
+      ]
+     }
+    },
+    "applied": true,
+    "reasons": [],
+    "accepted": true,
+    "resolved": true,
+    "regression": {
+     "failed": 0,
+     "passed": 49,
+     "skipped": 0
+    },
+    "judge_cost_usd": 0.018489
+   },
+   "patch": "diff --git a/src/mrp/app.py b/src/mrp/app.py\nindex 3e2c393..1d009f9 100644\n--- a/src/mrp/app.py\n+++ b/src/mrp/app.py\n@@ -631,7 +631,7 @@ def create_app(\n \n     @app.get(\"/v1/provider-keys\")\n     async def list_keys(ws: Workspace = Depends(workspace)):\n-        async with db.owner() as conn:\n+        async with db.tenant(ws.id) as conn:\n             rows = await conn.fetch(\n                 \"SELECT provider, fingerprint, kek_version, created_at FROM mrp.provider_keys ORDER BY provider\"\n             )\ndiff --git a/tests/test_secrets.py b/tests/test_secrets.py\nindex dbb9393..34267bc 100644\n--- a/tests/test_secrets.py\n+++ b/tests/test_secrets.py\n@@ -63,6 +63,14 @@ async def test_customer_keys_and_content_never_reach_logs_or_traces(env, caplog)\n     assert SECRET.encode() not in bytes(raw[\"ciphertext\"])\n \n \n+async def test_listing_provider_keys_shows_only_own_workspace(env):\n+    _, ha = await env.workspace(plan=\"team\")\n+    _, hb = await env.workspace(plan=\"team\")\n+    await env.client.put(\"/v1/provider-keys/closed-a\", json={\"api_key\": SECRET}, headers=ha)\n+    assert len((await env.client.get(\"/v1/provider-keys\", headers=ha)).json()) == 1\n+    assert (await env.client.get(\"/v1/provider-keys\", headers=hb)).json() == []\n+\n+\n async def test_byok_is_a_plan_feature(env):\n     _, h = await env.workspace(plan=\"free\")\n     r = await env.client.put(\"/v1/provider-keys/closed-a\", json={\"api_key\": SECRET}, headers=h)\n",
+   "error": null,
+   "started_at": "2026-11-02T23:38:35.755935+01:00",
+   "finished_at": "2026-11-02T23:39:54.912900+01:00"
+  },
+  {
+   "id": 2,
+   "run_id": "pilot-1",
+   "task_id": "D03-max-cost-boundary",
+   "setup": "sonnet-solo",
+   "sample": 1,
+   "position": 1,
+   "state": "done",
+   "tries": 1,
+   "reserved_usd": 0.0,
+   "cost_usd": 0.052408,
+   "judge_cost_usd": 0.030565,
+   "abandoned_usd": 0.0,
+   "outcome": {
+    "notes": {},
+    "sessions": [
+     {
+      "ok": true,
+      "role": "executor",
+      "error": "",
+      "turns": 8,
+      "result": "I fixed the boundary bug, but I couldn't run any tests. Bash was denied in this session, so neither the tests nor `scripts/check.sh --fast` have been run.\n\n**Change:** in `src/mrp/router.py`, `decide()` kept only models with `cost(m) < max_cost`. I changed that to `<=`. A request that costs exactly the limit now routes, and one that costs more still raises `NoRoute`. `max_cost` there is already the lower of the plan limit and `mrp.max_cost`, computed in `app.py`.\n\n`ledger.check_entitlements` already refuses only when the estimate is strictly above the plan limit (`>`), so it needed no change.\n\n**Test:** I added `test_request_costing_exactly_the_limit_is_allowed` to `tests/test_router.py`. It uses `open-8b` and takes the limit from that model's own `cost(100, 100)`. It checks that the model is chosen at exactly that limit and that a limit one 8-decimal unit lower raises `NoRoute`. I haven't run it, and I assumed the catalog has `open-8b` and that its cost isn't zero.\n\n**Not done:** I didn't run `mrp evaluate` or `mrp gate`. AGENTS.md asks for both after a routing change, and a pull request would need the measured effect.\n\nPlease run `pytest tests/test_router.py` and `scripts/check.sh --fast`, or allow Bash and I'll run them.",
+      "denials": [
+       {
+        "tool_name": "Bash",
+        "tool_input": {
+         "command": "sed -i 's/if cost(m) < max_cost\\]/if cost(m) <= max_cost]/' src/mrp/router.py; sed -n 240,262p src/mrp/router.py; sed -n 35,70p tests/test_router.py"
+        },
+        "tool_use_id": "toolu_01ENNVBi4BYSuWrknRoqWCXr"
+       }
+      ],
+      "cost_usd": 0.0524082,
+      "tokens_in": 63466,
+      "duration_s": 15.5,
+      "tokens_out": 1682,
+      "tool_calls": 7,
+      "transcript": "/tmp/aeh/runs/pilot-1/D03-max-cost-boundary/sonnet-solo/s1/executor.jsonl"
+     }
+    ]
+   },
+   "grade": {
+    "diff": {
+     "files": [
+      "src/mrp/router.py",
+      "tests/test_router.py"
+     ],
+     "findings": [],
+     "lines_added": 13,
+     "tests_added": 0,
+     "lines_removed": 1
+    },
+    "judge": {
+     "agree": true,
+     "votes": [
+      {
+       "ok": true,
+       "blocking": [],
+       "mergeable": true
+      }
+     ],
+     "cost_usd": 0.030565,
+     "mergeable": true,
+     "unavailable": false
+    },
+    "hidden": {
+     "failed": 0,
+     "passed": 3,
+     "skipped": 0
+    },
+    "static": {
+     "lint": {
+      "ok": true,
+      "tail": [
+       "All checks passed!"
+      ]
+     },
+     "types": {
+      "ok": true,
+      "tail": [
+       "Success: no issues found in 27 source files"
+      ]
+     },
+     "format": {
+      "ok": true,
+      "tail": [
+       "36 files already formatted"
+      ]
+     }
+    },
+    "applied": true,
+    "reasons": [],
+    "accepted": true,
+    "resolved": true,
+    "regression": {
+     "failed": 0,
+     "passed": 49,
+     "skipped": 0
+    },
+    "judge_cost_usd": 0.030565
+   },
+   "patch": "diff --git a/src/mrp/router.py b/src/mrp/router.py\nindex d54d537..e609bf0 100644\n--- a/src/mrp/router.py\n+++ b/src/mrp/router.py\n@@ -216,7 +216,7 @@ def decide(\n     def cost(m: Model) -> Decimal:\n         return m.cost(tokens_in, tokens_out)\n \n-    affordable = [m for m in cands if cost(m) < max_cost]\n+    affordable = [m for m in cands if cost(m) <= max_cost]\n     if not affordable:\n         raise NoRoute(f\"the cheapest model costs more than the {max_cost} limit\")\n     meeting = sorted((m for m in affordable if q(m) >= target), key=lambda m: (cost(m), -q(m)))\ndiff --git a/tests/test_router.py b/tests/test_router.py\nindex 2ec3e2c..9fd8740 100644\n--- a/tests/test_router.py\n+++ b/tests/test_router.py\n@@ -66,6 +66,18 @@ def test_budget_and_context_limits():\n     assert r.primary.context >= 151_000\n \n \n+def test_request_costing_exactly_the_limit_is_allowed():\n+    cat, table = load(), calibrate(50)\n+    allowed = {\"open-8b\"}\n+    limit = cat.models[\"open-8b\"].cost(100, 100)\n+    assert router.decide(cat, table, \"chat\", 0.5, 100, 100, limit, allowed).primary.id == \"open-8b\"\n+    try:\n+        router.decide(cat, table, \"chat\", 0.5, 100, 100, limit - Decimal(\"0.00000001\"), allowed)\n+        raise AssertionError(\"expected NoRoute\")\n+    except router.NoRoute:\n+        pass\n+\n+\n def test_health_takes_a_degraded_model_out():\n     table = calibrate(300)\n     h = Health(table)\n",
+   "error": null,
+   "started_at": "2026-11-02T23:38:35.782712+01:00",
+   "finished_at": "2026-11-02T23:39:54.358257+01:00"
+  },
+  {
+   "id": 3,
+   "run_id": "pilot-1",
+   "task_id": "D03-max-cost-boundary",
+   "setup": "haiku-review",
+   "sample": 1,
+   "position": 2,
+   "state": "done",
+   "tries": 1,
+   "reserved_usd": 0.0,
+   "cost_usd": 0.010927,
+   "judge_cost_usd": 0.029832,
+   "abandoned_usd": 0.0,
+   "outcome": {
+    "notes": {
+     "review": [
+      {
+       "issues": [
+        "tests/test_router.py:67-78: the new `test_cost_exactly_at_the_limit_is_allowed` was inserted between `test_budget_and_context_limits`'s `except` block and its final `r = router.decide(cat, table, \"chat\", 0.9, 150_000, 1000, Decimal(10))` / `assert r.primary.context >= 151_000` lines, so the context-limit check now sits inside the cost-boundary test and `test_budget_and_context_limits` no longer covers context limits, which weakens that test; move the new test below the original test's final assertion.",
+        "Not verified: the Bash tool was denied, so I could not run `pytest tests/test_router.py` or `pytest -m invariant`; the router change `cost(m) <= max_cost` at src/mrp/router.py:219 and the new test are judged by reading only."
+       ],
+       "parsed": true,
+       "approve": false
+      }
+     ]
+    },
+    "sessions": [
+     {
+      "ok": true,
+      "role": "executor",
+      "error": "",
+      "turns": 9,
+      "result": "I've made the fix and added a test, but I could not run any tests or `scripts/check.sh --fast`. The shell tool was denied in this session, so the change is unverified.\n\n**Cause:** `src/mrp/router.py` filtered candidates with `cost(m) < max_cost`, a strict comparison. A model costing exactly the limit was dropped, and if nothing else was affordable the router raised `NoRoute`. The plan check in `ledger.py` already refuses only when the cost is strictly greater than the limit, so the router was the odd one out.\n\n**Changes (uncommitted, in the working tree):**\n- `src/mrp/router.py:219`: `cost(m) < max_cost` \u2192 `cost(m) <= max_cost`.\n- `tests/test_router.py`: new `test_cost_exactly_at_the_limit_is_allowed`. It takes the cheapest catalog model's cost for a fixed request and checks that `decide` accepts a limit equal to that cost. It also checks that a limit one `1e-8` below it still raises `NoRoute`. No existing test was changed.\n\n**Not done / unsure:**\n- The new test has not been run. I also could not confirm that it fails before the fix. Please run `python3 -m pytest -q tests/test_router.py` and `scripts/check.sh --fast`.\n- I did not check the `mrp.max_cost` path in `app.py:250`. It takes `min(plan.max_request_cost, req.mrp.max_cost)` and passes it to `decide`, so it should get the same fix. Worth confirming with an end-to-end request at the boundary if you have one.\n- AGENTS.md says routing changes need `mrp evaluate` and `mrp gate`, and the PR should state the measured effect. I did not run either, so that step remains.",
+      "denials": [
+       {
+        "tool_name": "Bash",
+        "tool_input": {
+         "command": "python3 -m pytest -q tests/test_router.py -p no:warnings 2>&1 | tail -15; python3 -m pytest -q tests/test_router.py -p no:warnings -k cost_exactly 2>&1 | tail -3; git stash -q && python3 -m pytest -q tests/test_router.py -k cost_exactly -p no:warnings 2>&1 | tail -3; git stash pop -q && git status --short",
+         "description": "Run router tests before and after the fix"
+        },
+        "tool_use_id": "toolu_01SgeJdzXC6WHknKFJ6w5BKP"
+       }
+      ],
+      "cost_usd": 0.00442565,
+      "tokens_in": 88564,
+      "duration_s": 18.5,
+      "tokens_out": 2945,
+      "tool_calls": 8,
+      "transcript": "/tmp/aeh/runs/pilot-1/D03-max-cost-boundary/haiku-review/s1/executor.jsonl"
+     },
+     {
+      "ok": true,
+      "role": "reviewer",
+      "error": "",
+      "turns": 6,
+      "result": "{\"approve\": false, \"issues\": [\"tests/test_router.py:67-78: the new `test_cost_exactly_at_the_limit_is_allowed` was inserted between `test_budget_and_context_limits`'s `except` block and its final `r = router.decide(cat, table, \\\"chat\\\", 0.9, 150_000, 1000, Decimal(10))` / `assert r.primary.context >= 151_000` lines, so the context-limit check now sits inside the cost-boundary test and `test_budget_and_context_limits` no longer covers context limits, which weakens that test; move the new test below the original test's final assertion.\", \"Not verified: the Bash tool was denied, so I could not run `pytest tests/test_router.py` or `pytest -m invariant`; the router change `cost(m) <= max_cost` at src/mrp/router.py:219 and the new test are judged by reading only.\"]}",
+      "denials": [
+       {
+        "tool_name": "Bash",
+        "tool_input": {
+         "command": "sed -n 40,90p tests/test_router.py && echo ---- && sed -n 190,240p src/mrp/router.py && echo ---- && grep -rn \"max_cost\\|max_request_cost\" src | head -40 && echo ---- && ls scripts; (timeout 300 python -m pytest tests/test_router.py -q 2>&1 | tail -15); (timeout 300 python -m pytest -m invariant -q 2>&1 | tail -5)",
+         "description": "Inspect test file, router logic, max_cost usages, run tests"
+        },
+        "tool_use_id": "toolu_01LSDR9mogB2j67ceTrzwqCW"
+       }
+      ],
+      "cost_usd": 0.00358478,
+      "tokens_in": 42186,
+      "duration_s": 15.1,
+      "tokens_out": 2494,
+      "tool_calls": 5,
+      "transcript": "/tmp/aeh/runs/pilot-1/D03-max-cost-boundary/haiku-review/s1/reviewer-0.jsonl"
+     },
+     {
+      "ok": true,
+      "role": "revise",
+      "error": "",
+      "turns": 5,
+      "result": "I fixed the test placement, but I could not run the tests or `scripts/check.sh --fast`. The Bash tool was denied in this session, so those results are still unverified.\n\n**Review issue 1 (test placement): fixed.** `test_cost_exactly_at_the_limit_is_allowed` now sits after `test_budget_and_context_limits`. That test is back to its original form, including the final context-limit assertion (`r = router.decide(... 150_000 ...)` / `assert r.primary.context >= 151_000`), so it covers context limits again.\n\n**Review issue 2 (not verified): still unverified.** I could not run `pytest tests/test_router.py`, `pytest -m invariant`, or `scripts/check.sh --fast`. The router change and the new test are checked by reading only.\n\n**Code change (unchanged from the reviewed diff):** `src/mrp/router.py:219` now uses `cost(m) <= max_cost` instead of `<`, so a model costing exactly the effective limit is affordable. Costs above the limit are still refused with `NoRoute`. The cascade path already compares with `>=` against the primary's cost, so it needs no change.\n\n**New test:** `test_cost_exactly_at_the_limit_is_allowed` takes the cheapest model's cost for an 800/60 request as the limit and expects a route. It then lowers the limit by one `Decimal` unit and expects `NoRoute`. The test assumes the cheapest model's cost is the global minimum across the catalog, so the `NoRoute` case holds.\n\nTo finish verification, rerun these from the repo root:\n- `python -m pytest tests/test_router.py -q`\n- `python -m pytest -m invariant -q`\n- `bash scripts/check.sh --fast`\n\nNothing was committed.",
+      "denials": [
+       {
+        "tool_name": "Bash",
+        "tool_input": {
+         "command": "python -m pytest tests/test_router.py -q 2>&1 | tail -20; python -m pytest -m invariant -q 2>&1 | tail -20; ls scripts; bash scripts/check.sh --fast 2>&1 | tail -30",
+         "description": "Run router tests, invariant tests, and fast check script"
+        },
+        "tool_use_id": "toolu_01RxwVj3zR65LAJPnLVNKtju"
+       }
+      ],
+      "cost_usd": 0.00291704,
+      "tokens_in": 46955,
+      "duration_s": 15.8,
+      "tokens_out": 2183,
+      "tool_calls": 4,
+      "transcript": "/tmp/aeh/runs/pilot-1/D03-max-cost-boundary/haiku-review/s1/revise-0.jsonl"
+     }
+    ]
+   },
+   "grade": {
+    "diff": {
+     "files": [
+      "src/mrp/router.py",
+      "tests/test_router.py"
+     ],
+     "findings": [],
+     "lines_added": 13,
+     "tests_added": 0,
+     "lines_removed": 1
+    },
+    "judge": {
+     "agree": true,
+     "votes": [
+      {
+       "ok": true,
+       "blocking": [],
+       "mergeable": true
+      }
+     ],
+     "cost_usd": 0.029832,
+     "mergeable": true,
+     "unavailable": false
+    },
+    "hidden": {
+     "failed": 0,
+     "passed": 3,
+     "skipped": 0
+    },
+    "static": {
+     "lint": {
+      "ok": true,
+      "tail": [
+       "All checks passed!"
+      ]
+     },
+     "types": {
+      "ok": true,
+      "tail": [
+       "Success: no issues found in 27 source files"
+      ]
+     },
+     "format": {
+      "ok": true,
+      "tail": [
+       "36 files already formatted"
+      ]
+     }
+    },
+    "applied": true,
+    "reasons": [],
+    "accepted": true,
+    "resolved": true,
+    "regression": {
+     "failed": 0,
+     "passed": 49,
+     "skipped": 0
+    },
+    "judge_cost_usd": 0.029832
+   },
+   "patch": "diff --git a/src/mrp/router.py b/src/mrp/router.py\nindex d54d537..e609bf0 100644\n--- a/src/mrp/router.py\n+++ b/src/mrp/router.py\n@@ -216,7 +216,7 @@ def decide(\n     def cost(m: Model) -> Decimal:\n         return m.cost(tokens_in, tokens_out)\n \n-    affordable = [m for m in cands if cost(m) < max_cost]\n+    affordable = [m for m in cands if cost(m) <= max_cost]\n     if not affordable:\n         raise NoRoute(f\"the cheapest model costs more than the {max_cost} limit\")\n     meeting = sorted((m for m in affordable if q(m) >= target), key=lambda m: (cost(m), -q(m)))\ndiff --git a/tests/test_router.py b/tests/test_router.py\nindex 2ec3e2c..b9dffc4 100644\n--- a/tests/test_router.py\n+++ b/tests/test_router.py\n@@ -66,6 +66,18 @@ def test_budget_and_context_limits():\n     assert r.primary.context >= 151_000\n \n \n+def test_cost_exactly_at_the_limit_is_allowed():\n+    cat, table = load(), calibrate(50)\n+    cheapest = min(m.cost(800, 60) for m in cat.models.values())\n+    r = router.decide(cat, table, \"extraction\", 0.5, 800, 60, cheapest)\n+    assert r.primary.cost(800, 60) <= cheapest\n+    try:\n+        router.decide(cat, table, \"extraction\", 0.5, 800, 60, cheapest - Decimal(\"0.00000001\"))\n+        raise AssertionError(\"expected NoRoute\")\n+    except router.NoRoute:\n+        pass\n+\n+\n def test_health_takes_a_degraded_model_out():\n     table = calibrate(300)\n     h = Health(table)\n",
+   "error": null,
+   "started_at": "2026-11-02T23:38:35.847723+01:00",
+   "finished_at": "2026-11-02T23:40:33.412055+01:00"
+  },
+  {
+   "id": 4,
+   "run_id": "pilot-1",
+   "task_id": "D03-max-cost-boundary",
+   "setup": "sonnet-review",
+   "sample": 1,
+   "position": 3,
+   "state": "done",
+   "tries": 1,
+   "reserved_usd": 0.0,
+   "cost_usd": 0.102767,
+   "judge_cost_usd": 0.029886,
+   "abandoned_usd": 0.0,
+   "outcome": {
+    "notes": {
+     "review": [
+      {
+       "issues": [],
+       "parsed": true,
+       "approve": true
+      }
+     ]
+    },
+    "sessions": [
+     {
+      "ok": true,
+      "role": "executor",
+      "error": "",
+      "turns": 8,
+      "result": "I fixed the boundary bug, but I couldn't run any tests or `scripts/check.sh --fast`. The Bash tool was denied in this session, so the change is unverified.\n\n**Change**\n- In `src/mrp/router.py`, `decide()` filtered candidate models with `cost(m) < max_cost`. I changed it to `<=`, so a request that costs exactly the effective limit is no longer refused with `no_route`.\n- A request that costs more than the limit is still refused.\n- `max_cost` already arrives in `decide()` as the lower of the plan's `max_request_cost` and the request's `mrp.max_cost`, so the fix covers both limits.\n- `ledger.check_entitlements` already refuses only when the cost is above the limit (`>`), so I left it alone.\n\n**Test**\n- I added `test_cost_exactly_at_the_limit_is_allowed` to `tests/test_router.py`. It checks that a limit equal to the `open-8b` cost routes to `open-8b`, and that a limit one 8-place unit lower raises `NoRoute`.\n- I didn't change or remove any existing test.\n\n**Not done**\n- I didn't run `pytest tests/test_router.py`, `scripts/check.sh --fast` or `mrp evaluate`.\n- The change is tiny and shouldn't shift routing except at the exact boundary. AGENTS.md still asks for `mrp evaluate` and `mrp gate` on routing changes, so those are worth running before merge.\n- I haven't confirmed that the new test's `open-8b` model and `chat` task make it pass as written.",
+      "denials": [
+       {
+        "tool_name": "Bash",
+        "tool_input": {
+         "command": "sed -i 's/if cost(m) < max_cost\\]/if cost(m) <= max_cost]/;s/affordable = \\[m for m in cands if cost(m) < max_cost\\]/affordable = [m for m in cands if cost(m) <= max_cost]/' src/mrp/router.py; git diff --stat; sed -n 1,75p tests/test_router.py"
+        },
+        "tool_use_id": "toolu_01B1YZgkWuid5rHfMNueCNC9"
+       },
+       {
+        "tool_name": "Bash",
+        "tool_input": {
+         "command": "python -m pytest tests/test_router.py -q 2>&1 | tail -8; scripts/check.sh --fast 2>&1 | tail -8"
+        },
+        "tool_use_id": "toolu_015Hpi3HT7Q1jZjpjvF4pvSj"
+       }
+      ],
+      "cost_usd": 0.050692,
+      "tokens_in": 76512,
+      "duration_s": 23.2,
+      "tokens_out": 1736,
+      "tool_calls": 7,
+      "transcript": "/tmp/aeh/runs/pilot-1/D03-max-cost-boundary/sonnet-review/s1/executor.jsonl"
+     },
+     {
+      "ok": true,
+      "role": "reviewer",
+      "error": "",
+      "turns": 8,
+      "result": "{\"approve\": true, \"issues\": []}",
+      "denials": [
+       {
+        "tool_name": "Bash",
+        "tool_input": {
+         "command": "grep -rn \"max_cost\\|max_request_cost\" src | head -30; python -m pytest tests/test_router.py -q 2>&1 | tail -5"
+        },
+        "tool_use_id": "toolu_019awY9DpqUPfPiyrGWa5EUo"
+       }
+      ],
+      "cost_usd": 0.05207540000000001,
+      "tokens_in": 59551,
+      "duration_s": 17.7,
+      "tokens_out": 1051,
+      "tool_calls": 7,
+      "transcript": "/tmp/aeh/runs/pilot-1/D03-max-cost-boundary/sonnet-review/s1/reviewer-0.jsonl"
+     }
+    ]
+   },
+   "grade": {
+    "diff": {
+     "files": [
+      "src/mrp/router.py",
+      "tests/test_router.py"
+     ],
+     "findings": [],
+     "lines_added": 14,
+     "tests_added": 0,
+     "lines_removed": 1
+    },
+    "judge": {
+     "agree": true,
+     "votes": [
+      {
+       "ok": true,
+       "blocking": [],
+       "mergeable": true
+      }
+     ],
+     "cost_usd": 0.029886,
+     "mergeable": true,
+     "unavailable": false
+    },
+    "hidden": {
+     "failed": 0,
+     "passed": 3,
+     "skipped": 0
+    },
+    "static": {
+     "lint": {
+      "ok": true,
+      "tail": [
+       "All checks passed!"
+      ]
+     },
+     "types": {
+      "ok": true,
+      "tail": [
+       "Success: no issues found in 27 source files"
+      ]
+     },
+     "format": {
+      "ok": true,
+      "tail": [
+       "36 files already formatted"
+      ]
+     }
+    },
+    "applied": true,
+    "reasons": [],
+    "accepted": true,
+    "resolved": true,
+    "regression": {
+     "failed": 0,
+     "passed": 49,
+     "skipped": 0
+    },
+    "judge_cost_usd": 0.029886
+   },
+   "patch": "diff --git a/src/mrp/router.py b/src/mrp/router.py\nindex d54d537..e609bf0 100644\n--- a/src/mrp/router.py\n+++ b/src/mrp/router.py\n@@ -216,7 +216,7 @@ def decide(\n     def cost(m: Model) -> Decimal:\n         return m.cost(tokens_in, tokens_out)\n \n-    affordable = [m for m in cands if cost(m) < max_cost]\n+    affordable = [m for m in cands if cost(m) <= max_cost]\n     if not affordable:\n         raise NoRoute(f\"the cheapest model costs more than the {max_cost} limit\")\n     meeting = sorted((m for m in affordable if q(m) >= target), key=lambda m: (cost(m), -q(m)))\ndiff --git a/tests/test_router.py b/tests/test_router.py\nindex 2ec3e2c..6c13fd9 100644\n--- a/tests/test_router.py\n+++ b/tests/test_router.py\n@@ -66,6 +66,19 @@ def test_budget_and_context_limits():\n     assert r.primary.context >= 151_000\n \n \n+def test_cost_exactly_at_the_limit_is_allowed():\n+    cat, table = load(), calibrate(50)\n+    allowed = {\"open-8b\"}\n+    exact = cat.models[\"open-8b\"].cost(100, 100)\n+    r = router.decide(cat, table, \"chat\", 0.5, 100, 100, exact, allowed)\n+    assert r.primary.id == \"open-8b\"\n+    try:\n+        router.decide(cat, table, \"chat\", 0.5, 100, 100, exact - Decimal(\"0.00000001\"), allowed)\n+        raise AssertionError(\"expected NoRoute\")\n+    except router.NoRoute:\n+        pass\n+\n+\n def test_health_takes_a_degraded_model_out():\n     table = calibrate(300)\n     h = Health(table)\n",
+   "error": null,
+   "started_at": "2026-11-02T23:39:54.664905+01:00",
+   "finished_at": "2026-11-02T23:41:20.586762+01:00"
+  },
+  {
+   "id": 5,
+   "run_id": "pilot-1",
+   "task_id": "D06-provider-keys-tenancy",
+   "setup": "haiku-best2",
+   "sample": 1,
+   "position": 4,
+   "state": "done",
+   "tries": 1,
+   "reserved_usd": 0.0,
+   "cost_usd": 0.012148,
+   "judge_cost_usd": 0.019136,
+   "abandoned_usd": 0.0,
+   "outcome": {
+    "notes": {
+     "tests": [
+      "Candidate 1: test suite passed (..................................................                       [100%])",
+      "Candidate 2: test suite passed (..................................................                       [100%])"
+     ],
+     "choice": 2,
+     "reason": "Both candidates make the identical fix (switching `list_keys` from `db.owner()` to `db.tenant(ws.id)`, and `provider_keys` is under RLS per `001_schema.sql:158`), and both regression tests pass, so I picked 2 for its clearer test that asserts workspace B sees neither A's provider nor its fingerprint"
+    },
+    "sessions": [
+     {
+      "ok": true,
+      "role": "executor-1",
+      "error": "",
+      "turns": 9,
+      "result": "I made the fix and added a regression test, but I could not run any tests. The shell permission was denied, so the verification steps are not done.\n\n**What was wrong:** `list_keys` in `src/mrp/app.py` queried `mrp.provider_keys` through `db.owner()`. That role bypasses the row-level security policy on that table, so every workspace's keys came back. AGENTS.md forbids exactly this on the request path.\n\n**What I changed:**\n- `src/mrp/app.py` (`list_keys`): switched `db.owner()` to `db.tenant(ws.id)`, the same pattern `put_key` and `delete_key` already use. The SQL and response shape are unchanged.\n- `tests/test_tenancy.py`: added `test_provider_key_listing_shows_only_own_workspace`. Workspace A (team plan) stores a key. A's listing returns exactly that provider. B's listing returns `[]`. It uses the existing `env.workspace(..., plan=...)` and `/v1/provider-keys` helpers.\n\n**Not done:**\n- I did not run `pytest tests/test_tenancy.py tests/test_secrets.py` or `scripts/check.sh --fast`. Please run them. The new test is the one to watch, since I wrote it without running it.\n- I did not check the `mypy` and lint results for the change.\n- The change is in the working tree and uncommitted, as the task asked.",
+      "denials": [
+       {
+        "tool_name": "Bash",
+        "tool_input": {
+         "command": "(timeout 500 python -m pytest tests/test_tenancy.py tests/test_secrets.py -q 2>&1 | tail -25); echo ===; (timeout 500 scripts/check.sh --fast 2>&1 | tail -25)",
+         "timeout": 560000,
+         "description": "Run tenancy/secrets tests and fast check script"
+        },
+        "tool_use_id": "toolu_01WqstfXgvccQMHRy9zJsyYA"
+       }
+      ],
+      "cost_usd": 0.005019849999999999,
+      "tokens_in": 113438,
+      "duration_s": 17.5,
+      "tokens_out": 2795,
+      "tool_calls": 8,
+      "transcript": "/tmp/aeh/runs/pilot-1/D06-provider-keys-tenancy/haiku-best2/s1/executor-1.jsonl"
+     },
+     {
+      "ok": true,
+      "role": "executor-2",
+      "error": "",
+      "turns": 8,
+      "result": "I can't run the tests or the check script. The shell was denied in this session, so my change is verified by reading only. I'm stopping here rather than looking for another way to execute them.\n\n## Summary\n\n**Root cause:** `GET /v1/provider-keys` in `src/mrp/app.py` (`list_keys`) queried `mrp.provider_keys` through `db.owner()`. That connection is the owner role and bypasses row-level security, so the query returned every workspace's rows. Every other provider-key handler, and the rest of the request path, uses `db.tenant(ws.id)`.\n\n**Changes (uncommitted, in the working tree):**\n- `src/mrp/app.py`: `list_keys` now uses `db.tenant(ws.id)`. The SQL is unchanged, so the RLS policy on `provider_keys` now limits the result to the caller's workspace.\n- `tests/test_tenancy.py`: added `test_provider_key_listing_shows_only_the_callers_workspace`. Workspace A stores a key and sees its own `closed-a` entry. Workspace B, on the `team` plan, sees an empty list. The test sits beside the other isolation tests and is marked as an invariant test, like the rest of that file.\n\n**Testing:** Not run. The Bash tool was denied in this session, so I could not run `pytest tests/test_tenancy.py tests/test_secrets.py` or `scripts/check.sh --fast`. Please run both. I'm least sure about the lint/format step: the new `put(...)` line in the test is long and may need reformatting under the project's formatter.\n\n**Not done:**\n- No commit, as requested.\n- I did not check whether the `owner()` calls at lines 310, 715 and 750 in `app.py` (not on this endpoint) also touch workspace tables on the request path. They may be legitimate admin or job paths, but they're worth a look under AGENTS.md invariant 1.",
+      "denials": [
+       {
+        "tool_name": "Bash",
+        "tool_input": {
+         "command": "cd /tmp/aeh/runs/pilot-1/D06-provider-keys-tenancy/haiku-best2/s1/repo-2; (timeout 500 python -m pytest tests/test_tenancy.py tests/test_secrets.py -q 2>&1 | tail -25); echo ---; (timeout 500 scripts/check.sh --fast 2>&1 | tail -25)",
+         "timeout": 600000,
+         "description": "Run tenancy and secrets tests, then fast check script"
+        },
+        "tool_use_id": "toolu_01FH9Nj5WEDRiDCMAoHNADQK"
+       }
+      ],
+      "cost_usd": 0.0051135600000000005,
+      "tokens_in": 105957,
+      "duration_s": 20.3,
+      "tokens_out": 2836,
+      "tool_calls": 7,
+      "transcript": "/tmp/aeh/runs/pilot-1/D06-provider-keys-tenancy/haiku-best2/s1/executor-2.jsonl"
+     },
+     {
+      "ok": true,
+      "role": "selector",
+      "error": "",
+      "turns": 3,
+      "result": "{\"choice\": 2, \"reason\": \"Both candidates make the identical fix (switching `list_keys` from `db.owner()` to `db.tenant(ws.id)`, and `provider_keys` is under RLS per `001_schema.sql:158`), and both regression tests pass, so I picked 2 for its clearer test that asserts workspace B sees neither A's provider nor its fingerprint.\"}",
+      "denials": [],
+      "cost_usd": 0.0020142200000000006,
+      "tokens_in": 29712,
+      "duration_s": 13.0,
+      "tokens_out": 1277,
+      "tool_calls": 2,
+      "transcript": "/tmp/aeh/runs/pilot-1/D06-provider-keys-tenancy/haiku-best2/s1/selector.jsonl"
+     }
+    ]
+   },
+   "grade": {
+    "diff": {
+     "files": [
+      "src/mrp/app.py",
+      "tests/test_tenancy.py"
+     ],
+     "findings": [],
+     "lines_added": 12,
+     "tests_added": 0,
+     "lines_removed": 1
+    },
+    "judge": {
+     "agree": true,
+     "votes": [
+      {
+       "ok": true,
+       "blocking": [],
+       "mergeable": true
+      }
+     ],
+     "cost_usd": 0.019136,
+     "mergeable": true,
+     "unavailable": false
+    },
+    "hidden": {
+     "failed": 0,
+     "passed": 2,
+     "skipped": 0
+    },
+    "static": {
+     "lint": {
+      "ok": true,
+      "tail": [
+       "All checks passed!"
+      ]
+     },
+     "types": {
+      "ok": true,
+      "tail": [
+       "Success: no issues found in 27 source files"
+      ]
+     },
+     "format": {
+      "ok": false,
+      "tail": [
+       "1 file would be reformatted, 35 files already formatted"
+      ]
+     }
+    },
+    "applied": true,
+    "reasons": [
+     "static: format"
+    ],
+    "accepted": false,
+    "resolved": true,
+    "regression": {
+     "failed": 0,
+     "passed": 49,
+     "skipped": 0
+    },
+    "judge_cost_usd": 0.019136
+   },
+   "patch": "diff --git a/src/mrp/app.py b/src/mrp/app.py\nindex 3e2c393..1d009f9 100644\n--- a/src/mrp/app.py\n+++ b/src/mrp/app.py\n@@ -631,7 +631,7 @@ def create_app(\n \n     @app.get(\"/v1/provider-keys\")\n     async def list_keys(ws: Workspace = Depends(workspace)):\n-        async with db.owner() as conn:\n+        async with db.tenant(ws.id) as conn:\n             rows = await conn.fetch(\n                 \"SELECT provider, fingerprint, kek_version, created_at FROM mrp.provider_keys ORDER BY provider\"\n             )\ndiff --git a/tests/test_tenancy.py b/tests/test_tenancy.py\nindex 8ff508f..10f19c4 100644\n--- a/tests/test_tenancy.py\n+++ b/tests/test_tenancy.py\n@@ -72,6 +72,17 @@ async def test_api_respects_isolation_for_runs_usage_and_cache(env):\n     assert again.headers[\"x-mrp-cache\"] == \"exact\"\n \n \n+async def test_provider_key_listing_shows_only_the_callers_workspace(env):\n+    a, ha = await env.workspace(name=\"a\", plan=\"team\")\n+    _, hb = await env.workspace(name=\"b\", plan=\"team\")\n+    r = await env.client.put(\"/v1/provider-keys/closed-a\", json={\"api_key\": \"sk-ws-a-0000000000001111\"}, headers=ha)\n+    assert r.status_code == 200, r.text\n+    listed_a = (await env.client.get(\"/v1/provider-keys\", headers=ha)).json()\n+    assert [k[\"provider\"] for k in listed_a] == [\"closed-a\"]\n+    listed_b = (await env.client.get(\"/v1/provider-keys\", headers=hb)).json()\n+    assert listed_b == []  # B must not see A's provider or fingerprint\n+\n+\n async def test_bad_keys_are_rejected(env):\n     await env.workspace()\n     assert (await env.client.get(\"/v1/models\", headers={\"Authorization\": \"Bearer nope\"})).status_code == 401\n",
+   "error": null,
+   "started_at": "2026-11-02T23:39:54.961001+01:00",
+   "finished_at": "2026-11-02T23:41:54.604562+01:00"
+  },
+  {
+   "id": 6,
+   "run_id": "pilot-1",
+   "task_id": "D03-max-cost-boundary",
+   "setup": "haiku-solo",
+   "sample": 1,
+   "position": 5,
+   "state": "done",
+   "tries": 1,
+   "reserved_usd": 0.0,
+   "cost_usd": 0.004063,
+   "judge_cost_usd": 0.02001,
+   "abandoned_usd": 0.0,
+   "outcome": {
+    "notes": {},
+    "sessions": [
+     {
+      "ok": true,
+      "role": "executor",
+      "error": "",
+      "turns": 7,
+      "result": "The boundary bug is fixed, but I could not run any tests. Bash was denied in this session, so neither the new test nor `scripts/check.sh --fast` has been run.\n\n**What I changed**\n\n- `src/mrp/router.py:219`: the affordability filter in `decide` was `cost(m) < max_cost`, which silently dropped any model costing exactly the limit. It is now `cost(m) <= max_cost`. When nothing is affordable, `decide` still raises `NoRoute`, so anything costing more than the limit is still refused. The cost is computed as an exact `Decimal`, so there is no rounding at the boundary.\n- `tests/test_router.py`: added `test_request_costing_exactly_the_limit_is_allowed`. It takes the cheapest model for a sample request, passes its exact cost as the limit and expects it to route. It then lowers the limit by `0.00000001` and expects `NoRoute`.\n\nI left the other comparisons alone. `ledger.check_entitlements` already uses `>` against `max_request_cost`, which is correct. The cascade's `cost(m) >= cost(primary)` compares against the primary model, not the limit.\n\n**Not verified**\n\n- The new test has not been run, so I have not seen it fail before the fix or pass after it.\n- `scripts/check.sh --fast` (format, lint, mypy) has not been run.\n- I did not check `app.py`'s `max_cost` computation, which takes the minimum of the plan limit and `mrp.max_cost`. It looks correct, but I did not trace it end to end.\n\nTo finish, run `pytest tests/test_router.py -k exactly` and `scripts/check.sh --fast` from the repo. Nothing has been committed.",
+      "denials": [
+       {
+        "tool_name": "Bash",
+        "tool_input": {
+         "command": "python -m pytest tests/test_router.py -q -k exactly 2>&1 | tail -15",
+         "description": "Run new boundary test before the fix"
+        },
+        "tool_use_id": "toolu_01TB5MbVYq9rAm8rTHovWr8J"
+       }
+      ],
+      "cost_usd": 0.00406339,
+      "tokens_in": 77916,
+      "duration_s": 18.1,
+      "tokens_out": 3133,
+      "tool_calls": 6,
+      "transcript": "/tmp/aeh/runs/pilot-1/D03-max-cost-boundary/haiku-solo/s1/executor.jsonl"
+     }
+    ]
+   },
+   "grade": {
+    "diff": {
+     "files": [
+      "src/mrp/router.py",
+      "tests/test_router.py"
+     ],
+     "findings": [],
+     "lines_added": 18,
+     "tests_added": 0,
+     "lines_removed": 1
+    },
+    "judge": {
+     "agree": true,
+     "votes": [
+      {
+       "ok": true,
+       "blocking": [],
+       "mergeable": true
+      }
+     ],
+     "cost_usd": 0.02001,
+     "mergeable": true,
+     "unavailable": false
+    },
+    "hidden": {
+     "failed": 0,
+     "passed": 3,
+     "skipped": 0
+    },
+    "static": {
+     "lint": {
+      "ok": true,
+      "tail": [
+       "All checks passed!"
+      ]
+     },
+     "types": {
+      "ok": true,
+      "tail": [
+       "Success: no issues found in 27 source files"
+      ]
+     },
+     "format": {
+      "ok": true,
+      "tail": [
+       "36 files already formatted"
+      ]
+     }
+    },
+    "applied": true,
+    "reasons": [],
+    "accepted": true,
+    "resolved": true,
+    "regression": {
+     "failed": 0,
+     "passed": 49,
+     "skipped": 0
+    },
+    "judge_cost_usd": 0.02001
+   },
+   "patch": "diff --git a/src/mrp/router.py b/src/mrp/router.py\nindex d54d537..e609bf0 100644\n--- a/src/mrp/router.py\n+++ b/src/mrp/router.py\n@@ -216,7 +216,7 @@ def decide(\n     def cost(m: Model) -> Decimal:\n         return m.cost(tokens_in, tokens_out)\n \n-    affordable = [m for m in cands if cost(m) < max_cost]\n+    affordable = [m for m in cands if cost(m) <= max_cost]\n     if not affordable:\n         raise NoRoute(f\"the cheapest model costs more than the {max_cost} limit\")\n     meeting = sorted((m for m in affordable if q(m) >= target), key=lambda m: (cost(m), -q(m)))\ndiff --git a/tests/test_router.py b/tests/test_router.py\nindex 2ec3e2c..60cd3d4 100644\n--- a/tests/test_router.py\n+++ b/tests/test_router.py\n@@ -66,6 +66,23 @@ def test_budget_and_context_limits():\n     assert r.primary.context >= 151_000\n \n \n+def test_request_costing_exactly_the_limit_is_allowed():\n+    cat, table = load(), calibrate(50)\n+    tin, tout = 800, 60\n+    cheapest = min(\n+        (m for m in cat.models.values() if m.context >= tin + tout),\n+        key=lambda m: m.cost(tin, tout),\n+    )\n+    exact = cheapest.cost(tin, tout)\n+    r = router.decide(cat, table, \"chat\", 0.0, tin, tout, exact, {cheapest.id})\n+    assert r.primary.id == cheapest.id\n+    try:\n+        router.decide(cat, table, \"chat\", 0.0, tin, tout, exact - Decimal(\"0.00000001\"), {cheapest.id})\n+        raise AssertionError(\"expected NoRoute\")\n+    except router.NoRoute:\n+        pass\n+\n+\n def test_health_takes_a_degraded_model_out():\n     table = calibrate(300)\n     h = Health(table)\n",
+   "error": null,
+   "started_at": "2026-11-02T23:40:33.709461+01:00",
+   "finished_at": "2026-11-02T23:41:35.283185+01:00"
+  },
+  {
+   "id": 7,
+   "run_id": "pilot-1",
+   "task_id": "D06-provider-keys-tenancy",
+   "setup": "sonnet-review",
+   "sample": 1,
+   "position": 6,
+   "state": "done",
+   "tries": 1,
+   "reserved_usd": 0.0,
+   "cost_usd": 0.101258,
+   "judge_cost_usd": 0.019172,
+   "abandoned_usd": 0.0,
+   "outcome": {
+    "notes": {
+     "review": [
+      {
+       "issues": [],
+       "parsed": true,
+       "approve": true
+      }
+     ]
+    },
+    "sessions": [
+     {
+      "ok": true,
+      "role": "executor",
+      "error": "",
+      "turns": 11,
+      "result": "I fixed the leak, but I couldn't run the tests or `scripts/check.sh --fast`. Bash was denied in this session (don't-ask mode), so nothing has been run, including the new test. Please run `python -m pytest tests/test_secrets.py` and `scripts/check.sh --fast` before merging.\n\n**Cause:** `list_keys` in `src/mrp/app.py` (`GET /v1/provider-keys`) queried through `db.owner()`. That connection bypasses the row-level security on `mrp.provider_keys`, so it returned every workspace's rows.\n\n**Fix:** it now uses `db.tenant(ws.id)`, like the PUT and DELETE handlers for the same endpoint. Row-level security then limits the rows to the caller's workspace. This is a one-line change and the SQL is unchanged.\n\n**Test:** I added `test_listing_provider_keys_shows_only_the_callers_workspace` to `tests/test_secrets.py`. Workspace A stores a key, then B's listing must be empty and A's must show only `closed-a`.\n\nI didn't check `app.py` for other `db.owner()` calls on the request path. The key-rotation query near line 752 is a candidate, since it reads `provider_keys` without a workspace filter. It looks like an admin operation, but I didn't confirm that.",
+      "denials": [
+       {
+        "tool_name": "Bash",
+        "tool_input": {
+         "command": "python - <<'E'\np='src/mrp/app.py'\ns=open(p).read()\ns=s.replace(\"\"\"        async with db.owner() as conn:\n            rows = await conn.fetch(\n                \"SELECT provider, fingerprint, kek_version, created_at FROM mrp.provider_keys ORDER BY provider\\\"\"\"\",\"\"\"        async with db.tenant(ws.id) as conn:\n            rows = await conn.fetch(\n                \"SELECT provider, fingerprint, kek_version, created_at FROM mrp.provider_keys ORDER BY provider\\\"\"\"\")\nopen(p,'w').write(s)\nE\ngit diff --stat; grep -n \"provider-keys\\|def test\\|^import\\|^from\\|fixture\" tests/test_secrets.py | head -40; ls tests"
+        },
+        "tool_use_id": "toolu_01AqsuLLy9vAAMzB8hxnA4Vj"
+       },
+       {
+        "tool_name": "Bash",
+        "tool_input": {
+         "command": "python -m pytest tests/test_secrets.py -q 2>&1 | tail -8; scripts/check.sh --fast 2>&1 | tail -15"
+        },
+        "tool_use_id": "toolu_016P319bBVmsh6MYNjaWLnj5"
+       }
+      ],
+      "cost_usd": 0.0679813,
+      "tokens_in": 92931,
+      "duration_s": 22.6,
+      "tokens_out": 2433,
+      "tool_calls": 10,
+      "transcript": "/tmp/aeh/runs/pilot-1/D06-provider-keys-tenancy/sonnet-review/s1/executor.jsonl"
+     },
+     {
+      "ok": true,
+      "role": "reviewer",
+      "error": "",
+      "turns": 6,
+      "result": "Those remaining `db.owner()` uses are legitimate (health check, workspace creation, admin rotation).\n\n{\"approve\": true, \"issues\": []}",
+      "denials": [
+       {
+        "tool_name": "Bash",
+        "tool_input": {
+         "command": "timeout 300 python -m pytest tests/test_secrets.py -q -x 2>&1 | tail -15; timeout 200 python -m pytest -m invariant -q 2>&1 | tail -5"
+        },
+        "tool_use_id": "toolu_01Q7LCtTE6NaRsf8CuxEJiwf"
+       }
+      ],
+      "cost_usd": 0.033276700000000006,
+      "tokens_in": 54538,
+      "duration_s": 12.8,
+      "tokens_out": 729,
+      "tool_calls": 5,
+      "transcript": "/tmp/aeh/runs/pilot-1/D06-provider-keys-tenancy/sonnet-review/s1/reviewer-0.jsonl"
+     }
+    ]
+   },
+   "grade": {
+    "diff": {
+     "files": [
+      "src/mrp/app.py",
+      "tests/test_secrets.py"
+     ],
+     "findings": [],
+     "lines_added": 10,
+     "tests_added": 0,
+     "lines_removed": 1
+    },
+    "judge": {
+     "agree": true,
+     "votes": [
+      {
+       "ok": true,
+       "blocking": [],
+       "mergeable": true
+      }
+     ],
+     "cost_usd": 0.019172,
+     "mergeable": true,
+     "unavailable": false
+    },
+    "hidden": {
+     "failed": 0,
+     "passed": 2,
+     "skipped": 0
+    },
+    "static": {
+     "lint": {
+      "ok": true,
+      "tail": [
+       "All checks passed!"
+      ]
+     },
+     "types": {
+      "ok": true,
+      "tail": [
+       "Success: no issues found in 27 source files"
+      ]
+     },
+     "format": {
+      "ok": false,
+      "tail": [
+       "1 file would be reformatted, 35 files already formatted"
+      ]
+     }
+    },
+    "applied": true,
+    "reasons": [
+     "static: format"
+    ],
+    "accepted": false,
+    "resolved": true,
+    "regression": {
+     "failed": 0,
+     "passed": 49,
+     "skipped": 0
+    },
+    "judge_cost_usd": 0.019172
+   },
+   "patch": "diff --git a/src/mrp/app.py b/src/mrp/app.py\nindex 3e2c393..1d009f9 100644\n--- a/src/mrp/app.py\n+++ b/src/mrp/app.py\n@@ -631,7 +631,7 @@ def create_app(\n \n     @app.get(\"/v1/provider-keys\")\n     async def list_keys(ws: Workspace = Depends(workspace)):\n-        async with db.owner() as conn:\n+        async with db.tenant(ws.id) as conn:\n             rows = await conn.fetch(\n                 \"SELECT provider, fingerprint, kek_version, created_at FROM mrp.provider_keys ORDER BY provider\"\n             )\ndiff --git a/tests/test_secrets.py b/tests/test_secrets.py\nindex dbb9393..f955da8 100644\n--- a/tests/test_secrets.py\n+++ b/tests/test_secrets.py\n@@ -69,6 +69,15 @@ async def test_byok_is_a_plan_feature(env):\n     assert r.status_code == 403\n \n \n+async def test_listing_provider_keys_shows_only_the_callers_workspace(env):\n+    _, ha = await env.workspace(plan=\"team\", name=\"acme\")\n+    _, hb = await env.workspace(plan=\"team\", name=\"globex\")\n+    assert (await env.client.put(\"/v1/provider-keys/closed-a\", json={\"api_key\": SECRET}, headers=ha)).status_code == 200\n+    assert (await env.client.get(\"/v1/provider-keys\", headers=hb)).json() == []\n+    listed = (await env.client.get(\"/v1/provider-keys\", headers=ha)).json()\n+    assert [k[\"provider\"] for k in listed] == [\"closed-a\"]\n+\n+\n def test_scaleway_key_manager_adapter_wraps_through_the_service():\n     import json\n \n",
+   "error": null,
+   "started_at": "2026-11-02T23:41:20.694616+01:00",
+   "finished_at": "2026-11-02T23:42:32.641136+01:00"
+  },
+  {
+   "id": 8,
+   "run_id": "pilot-1",
+   "task_id": "D06-provider-keys-tenancy",
+   "setup": "haiku-review",
+   "sample": 1,
+   "position": 7,
+   "state": "done",
+   "tries": 1,
+   "reserved_usd": 0.0,
+   "cost_usd": 0.009934,
+   "judge_cost_usd": 0.018437,
+   "abandoned_usd": 0.0,
+   "outcome": {
+    "notes": {
+     "review": [
+      {
+       "issues": [],
+       "parsed": true,
+       "approve": true
+      }
+     ]
+    },
+    "sessions": [
+     {
+      "ok": true,
+      "role": "executor",
+      "error": "",
+      "turns": 9,
+      "result": "I can't run the tests. The shell was denied in this session, so the verification step is still open. I won't try to route around that denial.\n\n**Changed**\n\n- `src/mrp/app.py`, `list_keys` (`GET /v1/provider-keys`): switched from `db.owner()` to `db.tenant(ws.id)`. The owner connection bypasses row-level security on `mrp.provider_keys`, so the query returned every workspace's rows. The tenant connection is the pattern `delete_key`, `put_key` and `customer_key` already use. This is a one-line change.\n- `tests/test_tenancy.py`: added `test_provider_key_listing_shows_only_own_workspace`. Workspace A stores a key, A's listing shows it, and B's listing is empty. I put it in the invariant suite because it is a cross-tenant isolation check.\n\n**Not verified**\n\n- I did not run `pytest` on `tests/test_tenancy.py` and `tests/test_secrets.py`, nor `scripts/check.sh --fast`. The Bash tool was denied in don't-ask mode.\n- I have not confirmed that the new test fails on the old code. It should, because the old owner query returns A's row to B.\n- Lint, format and mypy are unchecked. The change is small and I don't expect problems, but that is unconfirmed.\n\n**Next step:** run `scripts/check.sh --fast`, then `pytest -m invariant`, in a session where Bash is allowed. Nothing is committed.",
+      "denials": [
+       {
+        "tool_name": "Bash",
+        "tool_input": {
+         "command": "timeout 500 python -m pytest tests/test_tenancy.py tests/test_secrets.py -q 2>&1 | tail -25; echo \"---\"; timeout 500 scripts/check.sh --fast 2>&1 | tail -25",
+         "timeout": 600000,
+         "description": "Run tenancy and secrets tests, then fast check script"
+        },
+        "tool_use_id": "toolu_01Wnd276Kznrvu521ER7gPF1"
+       }
+      ],
+      "cost_usd": 0.00521006,
+      "tokens_in": 120270,
+      "duration_s": 25.8,
+      "tokens_out": 3046,
+      "tool_calls": 8,
+      "transcript": "/tmp/aeh/runs/pilot-1/D06-provider-keys-tenancy/haiku-review/s1/executor.jsonl"
+     },
+     {
+      "ok": true,
+      "role": "reviewer",
+      "error": "",
+      "turns": 7,
+      "result": "{\"approve\": true, \"issues\": []}",
+      "denials": [
+       {
+        "tool_name": "Bash",
+        "tool_input": {
+         "command": "sed -n 150,175p src/mrp/sql/001_schema.sql; grep -n \"def tenant\\|def owner\" -A12 src/mrp/db.py | head -60; grep -n \"invariant\" -B3 -A3 tests/test_tenancy.py | head -40; (timeout 300 python3 -m pytest -q tests/test_tenancy.py -p no:warnings 2>&1 | tail -30)",
+         "description": "Check RLS policy, db helpers, and run tenancy tests"
+        },
+        "tool_use_id": "toolu_01C2h73K5qz5qQtF2JS3eidg"
+       }
+      ],
+      "cost_usd": 0.00472365,
+      "tokens_in": 82334,
+      "duration_s": 15.4,
+      "tokens_out": 2111,
+      "tool_calls": 6,
+      "transcript": "/tmp/aeh/runs/pilot-1/D06-provider-keys-tenancy/haiku-review/s1/reviewer-0.jsonl"
+     }
+    ]
+   },
+   "grade": {
+    "diff": {
+     "files": [
+      "src/mrp/app.py",
+      "tests/test_tenancy.py"
+     ],
+     "findings": [],
+     "lines_added": 10,
+     "tests_added": 0,
+     "lines_removed": 1
+    },
+    "judge": {
+     "agree": true,
+     "votes": [
+      {
+       "ok": true,
+       "blocking": [],
+       "mergeable": true
+      }
+     ],
+     "cost_usd": 0.018437,
+     "mergeable": true,
+     "unavailable": false
+    },
+    "hidden": {
+     "failed": 0,
+     "passed": 2,
+     "skipped": 0
+    },
+    "static": {
+     "lint": {
+      "ok": true,
+      "tail": [
+       "All checks passed!"
+      ]
+     },
+     "types": {
+      "ok": true,
+      "tail": [
+       "Success: no issues found in 27 source files"
+      ]
+     },
+     "format": {
+      "ok": false,
+      "tail": [
+       "1 file would be reformatted, 35 files already formatted"
+      ]
+     }
+    },
+    "applied": true,
+    "reasons": [
+     "static: format"
+    ],
+    "accepted": false,
+    "resolved": true,
+    "regression": {
+     "failed": 0,
+     "passed": 49,
+     "skipped": 0
+    },
+    "judge_cost_usd": 0.018437
+   },
+   "patch": "diff --git a/src/mrp/app.py b/src/mrp/app.py\nindex 3e2c393..1d009f9 100644\n--- a/src/mrp/app.py\n+++ b/src/mrp/app.py\n@@ -631,7 +631,7 @@ def create_app(\n \n     @app.get(\"/v1/provider-keys\")\n     async def list_keys(ws: Workspace = Depends(workspace)):\n-        async with db.owner() as conn:\n+        async with db.tenant(ws.id) as conn:\n             rows = await conn.fetch(\n                 \"SELECT provider, fingerprint, kek_version, created_at FROM mrp.provider_keys ORDER BY provider\"\n             )\ndiff --git a/tests/test_tenancy.py b/tests/test_tenancy.py\nindex 8ff508f..ab72a9e 100644\n--- a/tests/test_tenancy.py\n+++ b/tests/test_tenancy.py\n@@ -72,6 +72,15 @@ async def test_api_respects_isolation_for_runs_usage_and_cache(env):\n     assert again.headers[\"x-mrp-cache\"] == \"exact\"\n \n \n+async def test_provider_key_listing_shows_only_own_workspace(env):\n+    _, ha = await env.workspace(name=\"a\", plan=\"team\")\n+    _, hb = await env.workspace(name=\"b\", plan=\"team\")\n+    r = await env.client.put(\"/v1/provider-keys/closed-a\", json={\"api_key\": \"sk-workspace-a-0001\"}, headers=ha)\n+    assert r.status_code == 200, r.text\n+    assert [k[\"provider\"] for k in (await env.client.get(\"/v1/provider-keys\", headers=ha)).json()] == [\"closed-a\"]\n+    assert (await env.client.get(\"/v1/provider-keys\", headers=hb)).json() == []\n+\n+\n async def test_bad_keys_are_rejected(env):\n     await env.workspace()\n     assert (await env.client.get(\"/v1/models\", headers={\"Authorization\": \"Bearer nope\"})).status_code == 401\n",
+   "error": null,
+   "started_at": "2026-11-02T23:41:35.489260+01:00",
+   "finished_at": "2026-11-02T23:42:51.110777+01:00"
+  },
+  {
+   "id": 9,
+   "run_id": "pilot-1",
+   "task_id": "D03-max-cost-boundary",
+   "setup": "haiku-best2",
+   "sample": 1,
+   "position": 8,
+   "state": "done",
+   "tries": 1,
+   "reserved_usd": 0.0,
+   "cost_usd": 0.011258,
+   "judge_cost_usd": 0.030348,
+   "abandoned_usd": 0.0,
+   "outcome": {
+    "notes": {
+     "tests": [
+      "Candidate 1: test suite passed (..................................................                       [100%])",
+      "Candidate 2: test suite passed (..................................................                       [100%])"
+     ],
+     "choice": 2,
+     "reason": "Both candidates make the identical one-line fix (`<` to `<=`) in `router.decide`, which matches the documented limit, but candidate 2's test pins the exact model that must be selected at the limit (via `allowed={cheapest.id}`) and asserts `primary.id`, whereas candidate 1's test only checks a cost i"
+    },
+    "sessions": [
+     {
+      "ok": true,
+      "role": "executor-1",
+      "error": "",
+      "turns": 13,
+      "result": "The fix is in, but I could not run any tests. The Bash tool was denied in this session, so I could not run pytest or `scripts/check.sh --fast`.\n\n**Cause:** `src/mrp/router.py:219` filtered candidates with `cost(m) < max_cost`. A model costing exactly the limit was dropped, and if it was the cheapest, `decide` raised `NoRoute`. The ledger's own check at `src/mrp/ledger.py:67` already uses `>`, so refusing only above the limit is the intended rule.\n\n**Changes:**\n- `src/mrp/router.py:219`: `<` changed to `<=`. Nothing else changed. The cascade logic at line 240 still skips the primary with `>=`, which is correct.\n- `tests/test_router.py`: added `test_a_request_costing_exactly_the_limit_is_allowed`. It takes the cheapest catalog model's cost for a 100/100-token chat request, checks that `decide` succeeds with that exact limit, and checks that a limit one unit (`0.00000001`) lower raises `NoRoute`. I did not modify or remove any existing test.\n\n**Not verified:**\n- The new test and the existing router tests have not been run, and `mypy`, `ruff` and the invariant tests have not been run either.\n- I did not check the `min(plan.max_request_cost, req.mrp.max_cost)` path in `src/mrp/app.py:250`. It passes the limit straight into `decide`, so it should behave the same, but that is by reading only.\n\nTo verify, run `pytest tests/test_router.py` and `scripts/check.sh --fast` in the repo. I did not commit anything.",
+      "denials": [
+       {
+        "tool_name": "Bash",
+        "tool_input": {
+         "command": "cat AGENTS.md && git status --short && rg -n \"max_request_cost|max_cost|no_route\" --type-add 'src:*.{py,ts,js,go,rs,rb,java}' -t src . | head -80",
+         "description": "Read AGENTS.md and search for cost limit code"
+        },
+        "tool_use_id": "toolu_011QXd62PT6LYAQZd8tVq6S5"
+       }
+      ],
+      "cost_usd": 0.0051557600000000006,
+      "tokens_in": 107485,
+      "duration_s": 19.5,
+      "tokens_out": 3784,
+      "tool_calls": 12,
+      "transcript": "/tmp/aeh/runs/pilot-1/D03-max-cost-boundary/haiku-best2/s1/executor-1.jsonl"
+     },
+     {
+      "ok": true,
+      "role": "executor-2",
+      "error": "",
+      "turns": 10,
+      "result": "The fix is in place, but I could not run the tests or `scripts/check.sh --fast`. The Bash tool was denied in this session, so the change is verified only by reading it.\n\n**What was wrong:** `router.decide` in `src/mrp/router.py` kept only models with `cost(m) < max_cost`. A model costing exactly the limit was dropped, and if it was the only candidate the request was refused with `no_route`. The ledger check in `src/mrp/ledger.py:67` already refuses only when cost is strictly greater than the limit, so the router was the odd one out.\n\n**What I changed:**\n- `src/mrp/router.py:219`: `cost(m) < max_cost` \u2192 `cost(m) <= max_cost`.\n- `tests/test_router.py`: added `test_a_request_costing_exactly_the_limit_is_allowed`. It takes the cheapest model in the catalog, uses its cost for 100 in / 100 out tokens as the limit, and asserts that routing succeeds. It then lowers the limit by one `Decimal` unit of 0.00000001 and asserts `NoRoute`, so the \"more than the limit is still refused\" side is covered too. The existing budget test is untouched.\n\n**Not done / unverified:**\n- The new test and the existing `tests/test_router.py` have not been run. Please run `pytest tests/test_router.py` and `scripts/check.sh --fast`.\n- I did not run `mrp evaluate` or `mrp gate`. AGENTS.md asks for those on routing changes; this one-character change could shift routing decisions at the boundary, so it may be worth running them before merge.\n- I did not commit, as requested.",
+      "denials": [
+       {
+        "tool_name": "Bash",
+        "tool_input": {
+         "command": "(python -m pytest tests/test_router.py -q 2>&1 | tail -15); echo ---; (scripts/check.sh --fast 2>&1 | tail -25)",
+         "timeout": 300000,
+         "description": "Run router tests and fast check script"
+        },
+        "tool_use_id": "toolu_01RXxxGm688npjtT8i2GGJfh"
+       }
+      ],
+      "cost_usd": 0.00386106,
+      "tokens_in": 89721,
+      "duration_s": 18.5,
+      "tokens_out": 2900,
+      "tool_calls": 9,
+      "transcript": "/tmp/aeh/runs/pilot-1/D03-max-cost-boundary/haiku-best2/s1/executor-2.jsonl"
+     },
+     {
+      "ok": true,
+      "role": "selector",
+      "error": "",
+      "turns": 3,
+      "result": "{\"choice\": 2, \"reason\": \"Both candidates make the identical one-line fix (`<` to `<=`) in `router.decide`, which matches the documented limit, but candidate 2's test pins the exact model that must be selected at the limit (via `allowed={cheapest.id}`) and asserts `primary.id`, whereas candidate 1's test only checks a cost inequality and would still pass if the wrong model were chosen.\"}",
+      "denials": [],
+      "cost_usd": 0.00224145,
+      "tokens_in": 29844,
+      "duration_s": 12.6,
+      "tokens_out": 1657,
+      "tool_calls": 2,
+      "transcript": "/tmp/aeh/runs/pilot-1/D03-max-cost-boundary/haiku-best2/s1/selector.jsonl"
+     }
+    ]
+   },
+   "grade": {
+    "diff": {
+     "files": [
+      "src/mrp/router.py",
+      "tests/test_router.py"
+     ],
+     "findings": [],
+     "lines_added": 15,
+     "tests_added": 0,
+     "lines_removed": 1
+    },
+    "judge": {
+     "agree": true,
+     "votes": [
+      {
+       "ok": true,
+       "blocking": [],
+       "mergeable": true
+      }
+     ],
+     "cost_usd": 0.030348,
+     "mergeable": true,
+     "unavailable": false
+    },
+    "hidden": {
+     "failed": 0,
+     "passed": 3,
+     "skipped": 0
+    },
+    "static": {
+     "lint": {
+      "ok": true,
+      "tail": [
+       "All checks passed!"
+      ]
+     },
+     "types": {
+      "ok": true,
+      "tail": [
+       "Success: no issues found in 27 source files"
+      ]
+     },
+     "format": {
+      "ok": true,
+      "tail": [
+       "36 files already formatted"
+      ]
+     }
+    },
+    "applied": true,
+    "reasons": [],
+    "accepted": true,
+    "resolved": true,
+    "regression": {
+     "failed": 0,
+     "passed": 49,
+     "skipped": 0
+    },
+    "judge_cost_usd": 0.030348
+   },
+   "patch": "diff --git a/src/mrp/router.py b/src/mrp/router.py\nindex d54d537..e609bf0 100644\n--- a/src/mrp/router.py\n+++ b/src/mrp/router.py\n@@ -216,7 +216,7 @@ def decide(\n     def cost(m: Model) -> Decimal:\n         return m.cost(tokens_in, tokens_out)\n \n-    affordable = [m for m in cands if cost(m) < max_cost]\n+    affordable = [m for m in cands if cost(m) <= max_cost]\n     if not affordable:\n         raise NoRoute(f\"the cheapest model costs more than the {max_cost} limit\")\n     meeting = sorted((m for m in affordable if q(m) >= target), key=lambda m: (cost(m), -q(m)))\ndiff --git a/tests/test_router.py b/tests/test_router.py\nindex 2ec3e2c..473a302 100644\n--- a/tests/test_router.py\n+++ b/tests/test_router.py\n@@ -66,6 +66,20 @@ def test_budget_and_context_limits():\n     assert r.primary.context >= 151_000\n \n \n+def test_a_request_costing_exactly_the_limit_is_allowed():\n+    cat, table = load(), calibrate(50)\n+    cheapest = min(cat.models.values(), key=lambda m: m.cost(100, 100))\n+    limit = cheapest.cost(100, 100)\n+    allowed = {cheapest.id}\n+    r = router.decide(cat, table, \"chat\", 0.9, 100, 100, limit, allowed)\n+    assert r.primary.id == cheapest.id\n+    try:\n+        router.decide(cat, table, \"chat\", 0.9, 100, 100, limit - Decimal(\"0.00000001\"), allowed)\n+        raise AssertionError(\"expected NoRoute\")\n+    except router.NoRoute:\n+        pass\n+\n+\n def test_health_takes_a_degraded_model_out():\n     table = calibrate(300)\n     h = Health(table)\n",
+   "error": null,
+   "started_at": "2026-11-02T23:41:54.983575+01:00",
+   "finished_at": "2026-11-02T23:43:26.011166+01:00"
+  },
+  {
+   "id": 10,
+   "run_id": "pilot-1",
+   "task_id": "D06-provider-keys-tenancy",
+   "setup": "haiku-solo",
+   "sample": 1,
+   "position": 9,
+   "state": "done",
+   "tries": 1,
+   "reserved_usd": 0.0,
+   "cost_usd": 0.007103,
+   "judge_cost_usd": 0.018882,
+   "abandoned_usd": 0.0,
+   "outcome": {
+    "notes": {},
+    "sessions": [
+     {
+      "ok": true,
+      "role": "executor",
+      "error": "",
+      "turns": 13,
+      "result": "I've made the fix and added a regression test, but I could not finish verification. Bash was denied twice, so I could not run the test suite, `scripts/check.sh --fast`, or the formatter after my last edit.\n\n**What was wrong:** `GET /v1/provider-keys` in `src/mrp/app.py` ran its query through `db.owner()`. The owner connection bypasses row-level security, so it returned every workspace's rows. The other provider-key handlers, and the rest of the request path, use `db.tenant(ws.id)`.\n\n**What I changed:**\n- `src/mrp/app.py`: `list_keys` now uses `db.tenant(ws.id)`. That is the only line of logic changed.\n- `tests/test_tenancy.py`: added `test_provider_key_listing_shows_only_own_workspace`. Workspace A stores a key, A's listing shows exactly that provider, and B's listing is empty. It sits beside the other isolation tests and is marked as an invariant, like the rest of that file.\n- I wrapped one long line in the new test to fit the repo's 110-character limit, by reading `pyproject.toml` and editing by hand.\n\n**Not verified:**\n- I did not confirm that the new test fails without the fix. My attempt to check that with `git stash` and pytest was denied.\n- I did not run `pytest`, the invariant tests, or `scripts/check.sh --fast`. The earlier `--fast` run stopped at the format step on my long line. Since I wrapped it by hand, I have not confirmed the format check passes now.\n- Please run `scripts/check.sh --fast` and `pytest tests/test_tenancy.py tests/test_secrets.py` before merging. Running `ruff format --check tests/test_tenancy.py` will confirm the formatting.\n\nNothing is committed; the changes are in the working tree.",
+      "denials": [
+       {
+        "tool_name": "Bash",
+        "tool_input": {
+         "command": "git stash push src/mrp/app.py -q && timeout 300 python -m pytest tests/test_tenancy.py -k provider_key_listing -q 2>&1 | tail -5; git stash pop -q && echo \"--- with fix ---\" && timeout 300 python -m pytest tests/test_tenancy.py tests/test_secrets.py -q 2>&1 | tail -5 && git diff --stat",
+         "description": "Verify new test fails without fix and passes with it"
+        },
+        "tool_use_id": "toolu_01SyLnukc3PaifDgEiS6huhm"
+       },
+       {
+        "tool_name": "Bash",
+        "tool_input": {
+         "command": "grep -n \"ruff\\|format\" scripts/check.sh | head; ruff format tests/test_tenancy.py 2>&1 | tail -2; git diff tests/test_tenancy.py",
+         "description": "Auto-format the test file and show diff"
+        },
+        "tool_use_id": "toolu_01GacZgsTDXqRMuPivfovLXL"
+       }
+      ],
+      "cost_usd": 0.0071031900000000005,
+      "tokens_in": 182581,
+      "duration_s": 30.9,
+      "tokens_out": 4562,
+      "tool_calls": 12,
+      "transcript": "/tmp/aeh/runs/pilot-1/D06-provider-keys-tenancy/haiku-solo/s1/executor.jsonl"
+     }
+    ]
+   },
+   "grade": {
+    "diff": {
+     "files": [
+      "src/mrp/app.py",
+      "tests/test_tenancy.py"
+     ],
+     "findings": [],
+     "lines_added": 14,
+     "tests_added": 0,
+     "lines_removed": 1
+    },
+    "judge": {
+     "agree": true,
+     "votes": [
+      {
+       "ok": true,
+       "blocking": [],
+       "mergeable": true
+      }
+     ],
+     "cost_usd": 0.018882,
+     "mergeable": true,
+     "unavailable": false
+    },
+    "hidden": {
+     "failed": 0,
+     "passed": 2,
+     "skipped": 0
+    },
+    "static": {
+     "lint": {
+      "ok": true,
+      "tail": [
+       "All checks passed!"
+      ]
+     },
+     "types": {
+      "ok": true,
+      "tail": [
+       "Success: no issues found in 27 source files"
+      ]
+     },
+     "format": {
+      "ok": true,
+      "tail": [
+       "36 files already formatted"
+      ]
+     }
+    },
+    "applied": true,
+    "reasons": [],
+    "accepted": true,
+    "resolved": true,
+    "regression": {
+     "failed": 0,
+     "passed": 49,
+     "skipped": 0
+    },
+    "judge_cost_usd": 0.018882
+   },
+   "patch": "diff --git a/src/mrp/app.py b/src/mrp/app.py\nindex 3e2c393..1d009f9 100644\n--- a/src/mrp/app.py\n+++ b/src/mrp/app.py\n@@ -631,7 +631,7 @@ def create_app(\n \n     @app.get(\"/v1/provider-keys\")\n     async def list_keys(ws: Workspace = Depends(workspace)):\n-        async with db.owner() as conn:\n+        async with db.tenant(ws.id) as conn:\n             rows = await conn.fetch(\n                 \"SELECT provider, fingerprint, kek_version, created_at FROM mrp.provider_keys ORDER BY provider\"\n             )\ndiff --git a/tests/test_tenancy.py b/tests/test_tenancy.py\nindex 8ff508f..0a8dda7 100644\n--- a/tests/test_tenancy.py\n+++ b/tests/test_tenancy.py\n@@ -72,6 +72,19 @@ async def test_api_respects_isolation_for_runs_usage_and_cache(env):\n     assert again.headers[\"x-mrp-cache\"] == \"exact\"\n \n \n+async def test_provider_key_listing_shows_only_own_workspace(env):\n+    _, ha = await env.workspace(name=\"a\", plan=\"team\")\n+    _, hb = await env.workspace(name=\"b\", plan=\"team\")\n+    r = await env.client.put(\n+        \"/v1/provider-keys/closed-a\", json={\"api_key\": \"sk-a-0000000000001111\"}, headers=ha\n+    )\n+    assert r.status_code == 200, r.text\n+    listed_a = (await env.client.get(\"/v1/provider-keys\", headers=ha)).json()\n+    assert [k[\"provider\"] for k in listed_a] == [\"closed-a\"]\n+    listed_b = (await env.client.get(\"/v1/provider-keys\", headers=hb)).json()\n+    assert listed_b == []  # B must not see A's provider or fingerprint\n+\n+\n async def test_bad_keys_are_rejected(env):\n     await env.workspace()\n     assert (await env.client.get(\"/v1/models\", headers={\"Authorization\": \"Bearer nope\"})).status_code == 401\n",
+   "error": null,
+   "started_at": "2026-11-02T23:42:32.879698+01:00",
+   "finished_at": "2026-11-02T23:43:22.656594+01:00"
+  }
+ ]
+}

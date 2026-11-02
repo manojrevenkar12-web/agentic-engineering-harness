@@ -1,0 +1,4 @@
+id: H02-cache-hit-charge
+title: "Cached answers are billed from the estimate, not from what the original call cost"
+kind: bug
+target: model-router-platform

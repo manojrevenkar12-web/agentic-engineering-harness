@@ -10,8 +10,15 @@ export function Heldout({ h, setups }: { h: H; setups: Record<string, SetupConfi
     <div>
       <p>
         Recorded {new Date(h.recorded_at).toLocaleDateString("en-GB", { dateStyle: "long" })} and kept as recorded.{" "}
-        {keys.map((k) => `${setupName(k, setups[k])}: ${h.setups[k].accepted} of ${h.setups[k].attempts} merged (${usd(h.setups[k].cost_usd)} in all)`).join("; ")}.
+        {keys
+          .map(
+            (k) =>
+              `${setupName(k, setups[k])}: ${h.setups[k].accepted} of ${h.setups[k].attempts} merged (${usd(h.setups[k].cost_usd)} in all)`,
+          )
+          .join("; ")}
+        .
       </p>
+      {/* biome-ignore lint/a11y/noNoninteractiveTabindex: a table that scrolls sideways must be reachable by keyboard */}
       <section className={s.wrap} aria-label="Held-out tasks" tabIndex={0}>
         <table className={s.table}>
           <thead>

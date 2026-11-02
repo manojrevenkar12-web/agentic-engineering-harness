@@ -12,7 +12,7 @@ import subprocess
 import sys
 
 args = sys.argv[1:]
-prompt = args[args.index("-p") + 1]
+prompt = sys.stdin.read()
 tools = args[args.index("--tools") + 1] if "--tools" in args else ""
 script = json.load(open(os.environ["AEH_FAKE_SCRIPT"])) if os.environ.get("AEH_FAKE_SCRIPT") else {}
 cost = float(os.environ.get("AEH_FAKE_COST", "0.01"))

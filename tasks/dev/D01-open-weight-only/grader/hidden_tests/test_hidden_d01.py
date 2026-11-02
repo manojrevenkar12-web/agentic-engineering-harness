@@ -41,3 +41,13 @@ async def test_without_the_option_nothing_changes(env):
     _, h = await env.workspace()
     r = await env.client.post("/v1/chat/completions", json=chat("hello", model="frontier-mid"), headers=h)
     assert r.status_code == 200, r.text
+
+
+async def test_a_cached_answer_from_a_closed_model_is_not_served(env):
+    _, h = await env.workspace()
+    prompt = "Summarize the key points of our Q3 call."
+    first = await env.client.post("/v1/chat/completions", json=chat(prompt, model="frontier-mid"), headers=h)
+    assert first.status_code == 200 and first.json()["model"] == "frontier-mid"
+    r = await env.client.post("/v1/chat/completions", json=chat(prompt, mrp={"open_weight_only": True}), headers=h)
+    assert r.status_code == 200, r.text
+    assert r.json()["model"] in OPEN

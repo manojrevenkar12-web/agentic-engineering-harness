@@ -1,0 +1,1 @@
+owner_connection_with_where_clause: behaves correctly but keeps a request-path query on db.owner() and relies on hand-written workspace_id filters, which AGENTS.md rule 1 forbids (row-level security must do the isolating).

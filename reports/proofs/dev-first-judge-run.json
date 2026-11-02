@@ -1,0 +1,531 @@
+{
+ "summary": {
+  "set": "dev",
+  "tasks": 12,
+  "proven": 10,
+  "mutants": 28,
+  "mutants_caught": 28,
+  "unmergeable": 9,
+  "unmergeable_rejected": 9,
+  "unmergeable_rejected_by": {
+   "static": 0,
+   "diff": 1,
+   "judge": 8,
+   "none": 0
+  },
+  "judge_passes_references": "10/12",
+  "judge_cost_usd": 0.3875,
+  "with_judge": true
+ },
+ "tasks": [
+  {
+   "task": "D01-open-weight-only",
+   "state": {
+    "hidden_failed": 2,
+    "suite_failed": 0,
+    "suite_passed": 49
+   },
+   "reference": {
+    "accepted": false,
+    "reasons": [
+     "review: The cache lookup (app.py ~375, cache.get) is keyed only by workspace, task, quality and messages, not by model. An `open_weight_only` request can therefore get a cached answer that a non-open-weight model produced. That breaks the rule that only open-weight models may serve the request. The cache hit needs filtering by open-weight model, or the cache needs to be bypassed, when the option is set."
+    ],
+    "judge": false,
+    "static": {
+     "format": true,
+     "lint": true,
+     "types": true
+    }
+   },
+   "mutants": [
+    {
+     "name": "auto_only",
+     "caught": true,
+     "why": "explicit closed models are still served"
+    },
+    {
+     "name": "explicit_only",
+     "caught": true,
+     "why": "automatic routing still uses closed models"
+    },
+    {
+     "name": "wrong_status",
+     "caught": true,
+     "why": "rejects with 400 instead of 422"
+    }
+   ],
+   "unmergeable": [
+    {
+     "name": "hardcoded_model_ids",
+     "tests_pass": true,
+     "rejected_by": "judge",
+     "why": "hard-codes today's open-weight model ids instead of the catalogue's open_weight flag",
+     "judge_blocking": [
+      "The open-weight check hard-codes the model ids (\"open-70b\", \"open-8b\", \"open-8b-extract\") in three places. The task says to use the `open_weight` flag in the catalogue, so a model added or re-flagged in the catalogue would be wrongly allowed or excluded."
+     ]
+    },
+    {
+     "name": "provider_name_instead_of_flag",
+     "tests_pass": true,
+     "rejected_by": "judge",
+     "why": "uses the provider name as a stand-in for the open_weight flag",
+     "judge_blocking": [
+      "The change decides what is open-weight by checking `provider == \"self-hosted\"` in three places in src/mrp/app.py. The task says to use the catalogue's `open_weight` flag, which already exists as `Model.open_weight`. If a self-hosted model is not flagged open-weight, or an open-weight model is hosted by another provider, the option will allow or reject the wrong models."
+     ]
+    }
+   ],
+   "judge_cost_usd": 0.075832,
+   "proven": false
+  },
+  {
+   "task": "D02-negation-cache-hits",
+   "state": {
+    "hidden_failed": 5,
+    "suite_failed": 0,
+    "suite_passed": 49
+   },
+   "reference": {
+    "accepted": true,
+    "reasons": [],
+    "judge": true,
+    "static": {
+     "format": true,
+     "lint": true,
+     "types": true
+    }
+   },
+   "mutants": [
+    {
+     "name": "drops_contractions",
+     "caught": true,
+     "why": "contractions no longer expand, so isn't loses its negation"
+    },
+    {
+     "name": "only_not",
+     "caught": true,
+     "why": "still drops no"
+    }
+   ],
+   "unmergeable": [
+    {
+     "name": "fix_and_lower_threshold",
+     "tests_pass": true,
+     "rejected_by": "judge",
+     "why": "fixes the slots but also lowers the semantic similarity threshold, which nobody asked for and serves more near misses",
+     "judge_blocking": [
+      "The change lowers the default semantic-cache similarity threshold from 0.85 to 0.75. The task doesn't ask for this, and the negation fix doesn't need it. It makes semantic hits more likely for every customer, which risks serving wrong cached answers. AGENTS.md also requires a caching change to rerun `mrp evaluate` and state the measured effect, and nothing shows that was done. Removing \"no\", \"not\" and \"never\" from FILLER is the real fix and should be merged on its own."
+     ]
+    }
+   ],
+   "judge_cost_usd": 0.061604,
+   "proven": true
+  },
+  {
+   "task": "D03-max-cost-boundary",
+   "state": {
+    "hidden_failed": 1,
+    "suite_failed": 0,
+    "suite_passed": 49
+   },
+   "reference": {
+    "accepted": true,
+    "reasons": [],
+    "judge": true,
+    "static": {
+     "format": true,
+     "lint": true,
+     "types": true
+    }
+   },
+   "mutants": [
+    {
+     "name": "no_limit",
+     "caught": true,
+     "why": "drops the limit"
+    },
+    {
+     "name": "tolerance",
+     "caught": true,
+     "why": "lets requests a cent over the limit through"
+    }
+   ],
+   "unmergeable": [
+    {
+     "name": "float_money",
+     "tests_pass": true,
+     "rejected_by": "judge",
+     "why": "compares money as float, against the Decimal convention in AGENTS.md",
+     "judge_blocking": [
+      "The fix converts Decimal costs and the limit to float for the comparison, violating the AGENTS.md rule that money is Decimal; float conversion can misjudge the boundary, so it should use `cost(m) <= max_cost` directly."
+     ]
+    }
+   ],
+   "judge_cost_usd": 0.029449,
+   "proven": true
+  },
+  {
+   "task": "D04-health-restore",
+   "state": {
+    "hidden_failed": 2,
+    "suite_failed": 0,
+    "suite_passed": 49
+   },
+   "reference": {
+    "accepted": true,
+    "reasons": [],
+    "judge": true,
+    "static": {
+     "format": true,
+     "lint": true,
+     "types": true
+    }
+   },
+   "mutants": [
+    {
+     "name": "clears_but_keeps_degraded",
+     "caught": true,
+     "why": "does not put the model back"
+    },
+    {
+     "name": "global_minimum_raised",
+     "caught": true,
+     "why": "also triples the detection window for every model; an existing test depends on it"
+    },
+    {
+     "name": "never_again",
+     "caught": true,
+     "why": "a restored model can never be excluded again"
+    }
+   ],
+   "unmergeable": [],
+   "judge_cost_usd": 0.016961,
+   "proven": true
+  },
+  {
+   "task": "D05-usage-invalid-month",
+   "state": {
+    "hidden_failed": 6,
+    "suite_failed": 0,
+    "suite_passed": 49
+   },
+   "reference": {
+    "accepted": true,
+    "reasons": [],
+    "judge": true,
+    "static": {
+     "format": true,
+     "lint": true,
+     "types": true
+    }
+   },
+   "mutants": [
+    {
+     "name": "regex_only",
+     "caught": true,
+     "why": "accepts 2026-13"
+    },
+    {
+     "name": "returns_empty",
+     "caught": true,
+     "why": "answers 200 with an empty report"
+    }
+   ],
+   "unmergeable": [
+    {
+     "name": "swallows_every_error",
+     "tests_pass": true,
+     "rejected_by": "judge",
+     "why": "turns every failure, database errors included, into a 422 about the month",
+     "judge_blocking": [
+      "The blanket `except Exception` wraps both `db.tenant` and `ledger.usage_report`, so any failure (database outage, RLS or pool errors, bugs) is reported as a 422 'month must be given as YYYY-MM' instead of a 500, which hides real server errors; the month should be validated explicitly before the query."
+     ]
+    }
+   ],
+   "judge_cost_usd": 0.034627,
+   "proven": true
+  },
+  {
+   "task": "D06-provider-keys-tenancy",
+   "state": {
+    "hidden_failed": 2,
+    "suite_failed": 0,
+    "suite_passed": 49
+   },
+   "reference": {
+    "accepted": true,
+    "reasons": [],
+    "judge": true,
+    "static": {
+     "format": true,
+     "lint": true,
+     "types": true
+    }
+   },
+   "mutants": [
+    {
+     "name": "lists_nothing",
+     "caught": true,
+     "why": "hides the workspace's own keys too"
+    }
+   ],
+   "unmergeable": [
+    {
+     "name": "owner_with_filter",
+     "tests_pass": true,
+     "rejected_by": "judge",
+     "why": "keeps the owner connection on the request path and filters by hand, against invariant 1 in AGENTS.md",
+     "judge_blocking": [
+      "The fix still queries mrp.provider_keys through db.owner() on the request path with a manual WHERE filter, instead of using db.tenant(ws.id) so row-level security isolates workspaces, which violates the tenant isolation invariant in AGENTS.md."
+     ]
+    }
+   ],
+   "judge_cost_usd": 0.008165,
+   "proven": true
+  },
+  {
+   "task": "D07-german-task-classification",
+   "state": {
+    "hidden_failed": 17,
+    "suite_failed": 0,
+    "suite_passed": 49
+   },
+   "reference": {
+    "accepted": true,
+    "reasons": [],
+    "judge": true,
+    "static": {
+     "format": true,
+     "lint": true,
+     "types": true
+    }
+   },
+   "mutants": [
+    {
+     "name": "case_sensitive",
+     "caught": true,
+     "why": "breaks on capitalised German nouns and on English"
+    },
+    {
+     "name": "no_umlauts",
+     "caught": true,
+     "why": "misses 'Schritt f\u00fcr Schritt'"
+    }
+   ],
+   "unmergeable": [],
+   "judge_cost_usd": 0.020109,
+   "proven": true
+  },
+  {
+   "task": "D08-catalog-validation",
+   "state": {
+    "hidden_failed": 8,
+    "suite_failed": 0,
+    "suite_passed": 49
+   },
+   "reference": {
+    "accepted": true,
+    "reasons": [],
+    "judge": true,
+    "static": {
+     "format": true,
+     "lint": true,
+     "types": true
+    }
+   },
+   "mutants": [
+    {
+     "name": "plain_valueerror",
+     "caught": true,
+     "why": "raises ValueError, not CatalogError"
+    },
+    {
+     "name": "targets_as_percent",
+     "caught": true,
+     "why": "accepts 90 as a quality target"
+    }
+   ],
+   "unmergeable": [
+    {
+     "name": "edits_shipped_prices",
+     "tests_pass": true,
+     "rejected_by": "judge",
+     "why": "adds the validation but also changes a model's prices in the shipped catalogue",
+     "judge_blocking": [
+      "The change edits shipped prices in models.yaml (open-8b price_in 0.06\u21920.05, price_out 0.09\u21920.08). The task did not ask for this, and it changes routing and billing for the shipped catalogue without a `mrp evaluate` run."
+     ]
+    }
+   ],
+   "judge_cost_usd": 0.039943,
+   "proven": true
+  },
+  {
+   "task": "D09-approval-lookalike-domains",
+   "state": {
+    "hidden_failed": 5,
+    "suite_failed": 0,
+    "suite_passed": 49
+   },
+   "reference": {
+    "accepted": true,
+    "reasons": [],
+    "judge": true,
+    "static": {
+     "format": true,
+     "lint": true,
+     "types": true
+    }
+   },
+   "mutants": [
+    {
+     "name": "case_sensitive",
+     "caught": true,
+     "why": "Bob@EXAMPLE.com needs approval"
+    },
+    {
+     "name": "first_only",
+     "caught": true,
+     "why": "checks only the first recipient"
+    },
+    {
+     "name": "suffix_match",
+     "caught": true,
+     "why": "still treats notexample.com as internal"
+    }
+   ],
+   "unmergeable": [
+    {
+     "name": "fix_and_drop_old_test",
+     "tests_pass": true,
+     "rejected_by": "diff",
+     "why": "fixes the check but deletes an existing assertion",
+     "judge_blocking": [
+      "The change deletes the assertion in tests/test_agents.py that an external recipient (x@other.org) needs approval. The new code still satisfies it, so removing it only weakens the test, and AGENTS.md forbids weakening or deleting tests. It should have kept that assertion and added look-alike, subdomain, case-insensitive and multi-recipient cases."
+     ]
+    }
+   ],
+   "judge_cost_usd": 0.027856,
+   "proven": true
+  },
+  {
+   "task": "D10-compress-keeps-tool-results",
+   "state": {
+    "hidden_failed": 2,
+    "suite_failed": 0,
+    "suite_passed": 49
+   },
+   "reference": {
+    "accepted": false,
+    "reasons": [
+     "review: When there are fewer than `keep_last` non-system messages (for example, several system messages that get past the early-return length check), `cut` goes negative. `rest[:cut]` and `rest[cut:]` then split the list at the wrong place. Recent turns get condensed into the digest, where the old code kept them all. The fix is `cut = max(0, len(rest) - keep_last)`."
+    ],
+    "judge": false,
+    "static": {
+     "format": true,
+     "lint": true,
+     "types": true
+    }
+   },
+   "mutants": [
+    {
+     "name": "drops_tool_messages",
+     "caught": true,
+     "why": "throws tool results away"
+    },
+    {
+     "name": "never_compress_with_tools",
+     "caught": true,
+     "why": "turns compression off for every conversation that ever used a tool"
+    },
+    {
+     "name": "one_step_only",
+     "caught": true,
+     "why": "keeps only one of several consecutive tool results"
+    }
+   ],
+   "unmergeable": [],
+   "judge_cost_usd": 0.023964,
+   "proven": false
+  },
+  {
+   "task": "D11-models-listing-prices",
+   "state": {
+    "hidden_failed": 2,
+    "suite_failed": 0,
+    "suite_passed": 49
+   },
+   "reference": {
+    "accepted": true,
+    "reasons": [],
+    "judge": true,
+    "static": {
+     "format": true,
+     "lint": true,
+     "types": true
+    }
+   },
+   "mutants": [
+    {
+     "name": "always_fine_tuned",
+     "caught": true,
+     "why": "adds an empty fine_tuned_for to every model"
+    },
+    {
+     "name": "with_markup",
+     "caught": true,
+     "why": "shows a price with the team markup"
+    }
+   ],
+   "unmergeable": [
+    {
+     "name": "float_prices",
+     "tests_pass": true,
+     "rejected_by": "judge",
+     "why": "puts prices through float, against the Decimal convention for money",
+     "judge_blocking": [
+      "Prices are converted with float(m.price_in) and float(m.price_out). AGENTS.md requires money to be Decimal, and the task asks for prices exactly as in the catalogue, which float can misrepresent. Serialise them as Decimal-exact values, such as strings or a Decimal-preserving JSON encoding."
+     ]
+    }
+   ],
+   "judge_cost_usd": 0.030379,
+   "proven": true
+  },
+  {
+   "task": "D12-idempotency-key-validation",
+   "state": {
+    "hidden_failed": 5,
+    "suite_failed": 0,
+    "suite_passed": 49
+   },
+   "reference": {
+    "accepted": true,
+    "reasons": [],
+    "judge": true,
+    "static": {
+     "format": true,
+     "lint": true,
+     "types": true
+    }
+   },
+   "mutants": [
+    {
+     "name": "http_exception",
+     "caught": true,
+     "why": "returns the wrong error shape"
+    },
+    {
+     "name": "length_only",
+     "caught": true,
+     "why": "accepts empty and non-ASCII keys"
+    },
+    {
+     "name": "truncates",
+     "caught": true,
+     "why": "silently truncates instead of rejecting"
+    }
+   ],
+   "unmergeable": [],
+   "judge_cost_usd": 0.01858,
+   "proven": true
+  }
+ ]
+}

@@ -1,0 +1,1 @@
+hard_coded_cache_share: fixes the stored cost but replaces the catalogue's cache.cached_answer_charge with a hard-coded 0.10 in the ledger, so a price change in models.yaml would silently stop applying to cache hits.

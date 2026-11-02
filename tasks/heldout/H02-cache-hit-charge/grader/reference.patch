@@ -1,0 +1,14 @@
+diff --git a/src/mrp/app.py b/src/mrp/app.py
+index 805d6a9..06e102c 100644
+--- a/src/mrp/app.py
++++ b/src/mrp/app.py
+@@ -471,7 +471,8 @@ def create_app(
+                     messages,
+                     comp.text,
+                     model.id,
+-                    route.estimated_cost,
++                    # a later hit is billed from what this answer actually cost, not from the estimate
++                    model.cost(comp.tokens_in, comp.tokens_out),
+                     semantic,
+                 )
+         log.info(

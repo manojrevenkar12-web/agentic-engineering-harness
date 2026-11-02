@@ -1,0 +1,4 @@
+stops_without_the_error_event: stops before the fallback but sends no error event, so the client cannot tell the answer was cut off.
+error_event_then_fallback: sends the provider_error event but keeps going, so the fallback model's answer is still spliced in after it.
+no_fallback_in_streams: stops on any streaming failure, so a model that fails before its first chunk is no longer replaced by the fallback.
+second_error_event: restores the guard but still sends a no_provider error after the provider_error event, so the stream does not end with the one provider_error the brief asks for.

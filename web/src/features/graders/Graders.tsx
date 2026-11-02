@@ -2,7 +2,13 @@ import { taskName } from "../../shared/lib/labels";
 import type { Proof } from "../../shared/lib/results";
 import s from "./graders.module.css";
 
-const layerName: Record<string, string> = { tests: "tests", static: "static checks", diff: "diff checks", judge: "review judge", none: "nothing" };
+const layerName: Record<string, string> = {
+  tests: "tests",
+  static: "static checks",
+  diff: "diff checks",
+  judge: "review judge",
+  none: "nothing",
+};
 
 /** Before any agent is graded: every task's grader rejects known-wrong changes and accepts the reference. */
 export function Graders({ p }: { p: Proof }) {
@@ -27,8 +33,8 @@ export function Graders({ p }: { p: Proof }) {
             {p.unmergeable_rejected}/{p.unmergeable}
           </b>
           <span>
-            test-passing but unmergeable changes stopped ({caught.judge ?? 0} by the review judge, {caught.diff ?? 0} by diff checks, {caught.static ?? 0} by static
-            checks)
+            test-passing but unmergeable changes stopped ({caught.judge ?? 0} by the review judge, {caught.diff ?? 0} by diff checks,{" "}
+            {caught.static ?? 0} by static checks)
           </span>
         </div>
         <div className={s.fact}>
@@ -36,6 +42,7 @@ export function Graders({ p }: { p: Proof }) {
           <span>reference changes the review judge let through</span>
         </div>
       </div>
+      {/* biome-ignore lint/a11y/noNoninteractiveTabindex: a table that scrolls sideways must be reachable by keyboard */}
       <section className={s.wrap} aria-label={`Grader proofs, ${p.set} set`} tabIndex={0}>
         <table className={s.table}>
           <thead>

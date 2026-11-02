@@ -1,0 +1,4 @@
+listing_includes_the_hash: the listing also returns key_hash, so items have more than the four fields and leak the stored hash.
+revoke_deletes_the_row: deletes the key instead of setting revoked_at, so a revoked key disappears from the listing.
+revoked_as_owner: revokes on the owner connection, so one workspace can revoke another workspace's key.
+own_key_hash_includes_bearer: hashes the whole Authorization header (with "Bearer "), so the key in use is never recognised and can revoke itself.
