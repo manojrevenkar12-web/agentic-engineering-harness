@@ -180,3 +180,18 @@ def ledger_check(conn, run_id: str) -> dict:
         "budget_usd": float(budget),
         "within_budget": total <= budget,
     }
+
+
+def regraded(conn, run_id: str, attempt_id: int, grade: dict, extra_judge_cost: float) -> None:
+    """Replace a finished attempt's grade (same patch, fixed grading environment); extra judge spend is settled."""
+    extra = Decimal(str(round(extra_judge_cost, 6)))
+    with conn.transaction():
+        conn.execute(
+            "UPDATE aeh.attempts SET grade = %s, judge_cost_usd = coalesce(judge_cost_usd, 0) + %s WHERE id = %s AND state = 'done'",
+            (json.dumps(grade), extra, attempt_id),
+        )
+        if extra:
+            conn.execute(
+                "INSERT INTO aeh.spend (run_id, attempt_id, kind, amount_usd) VALUES (%s, %s, 'settle', %s)",
+                (run_id, attempt_id, extra),
+            )

@@ -4,6 +4,7 @@ import asyncio
 import json
 
 import pytest
+
 from tests.conftest import needs_db
 
 pytestmark = [pytest.mark.db, needs_db()]
@@ -108,3 +109,16 @@ def test_a_wrong_patch_is_not_accepted(toy):
     asyncio.run(run("toy-wrong", "toyset", ["haiku-solo"], 1, 50.0, tasks=load_set("toyset")))
     row = store.attempts(store.connect(), "toy-wrong")[0]
     assert row["state"] == "done" and not row["grade"]["resolved"] and not row["grade"]["accepted"]
+
+
+def test_regrading_keeps_the_first_grade_and_the_books(toy):
+    from aeh import store
+    from aeh.orchestrate import regrade, run
+    from aeh.tasks import load_set
+
+    asyncio.run(run("toy-regrade", "toyset", ["haiku-solo"], 2, 50.0, tasks=load_set("toyset")))
+    r = asyncio.run(regrade("toy-regrade", failed_suite_only=False))
+    assert r["regraded"] == 2 and r["acceptance_changed"] == 0
+    assert r["ledger"]["settled_match"] and r["ledger"]["within_budget"]
+    rows = store.attempts(store.connect(), "toy-regrade")
+    assert all(a["grade"]["previous"]["accepted"] is True for a in rows)

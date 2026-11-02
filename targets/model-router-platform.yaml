@@ -5,6 +5,7 @@ commit: adbd156bd97006d9f671d71a783de0bd2026e3b2
 # Each attempt gets its own database and Redis index; these variables point the target's tests at them.
 env:
   PYTHONPATH: "src:."
+  TZ: UTC                  # the target's tests mix date.today() with UTC timestamps; CI runs in UTC
   MRP_TEST_DATABASE_URL: "{database_url}"
   MRP_TEST_REDIS_URL: "{redis_url}"
 database_extensions: [vector]

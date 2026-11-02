@@ -143,3 +143,36 @@ async def run(
 
 def cleanup(run_id: str) -> None:
     shutil.rmtree(Path(workdir()) / "runs" / run_id, ignore_errors=True)
+
+
+async def regrade(run_id: str, failed_suite_only: bool = True) -> dict:
+    """Grade stored patches again, e.g. after a grading-environment fix. The agents do not run again.
+
+    Each regraded attempt keeps its first grade under grade["previous"], so the change is auditable.
+    """
+    conn = store.connect()
+    rows = [a for a in store.attempts(conn, run_id) if a["state"] == "done" and a["grade"]]
+    if failed_suite_only:
+        rows = [a for a in rows if (a["grade"].get("regression") or {}).get("failed")]
+    slots = Slots()
+    tasks: dict[str, Task] = {}
+    changed = 0
+
+    async def one(a: dict) -> None:
+        nonlocal changed
+        task = tasks.setdefault(a["task_id"], next(t for t in load_set(_set_of(conn, run_id)) if t.id == a["task_id"]))
+        home = workdir() / "runs" / run_id / a["task_id"] / a["setup"] / f"s{a['sample']}" / "regrade"
+        async with slots.lease() as slot:
+            g = await grade(task, a["patch"] or "", slot, home)
+        new = g.to_json() | {
+            "previous": {k: a["grade"].get(k) for k in ("accepted", "resolved", "regression", "reasons")}
+        }
+        changed += new["accepted"] != a["grade"].get("accepted")
+        await asyncio.to_thread(store.regraded, conn, run_id, a["id"], new, g.judge_cost_usd)
+
+    await asyncio.gather(*(one(a) for a in rows))
+    return {"regraded": len(rows), "acceptance_changed": changed, "ledger": store.ledger_check(conn, run_id)}
+
+
+def _set_of(conn, run_id: str) -> str:
+    return conn.execute("SELECT task_set FROM aeh.runs WHERE id = %s", (run_id,)).fetchone()["task_set"]
