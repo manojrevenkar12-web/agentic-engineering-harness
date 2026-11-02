@@ -16,7 +16,7 @@ def toy(tmp_path, monkeypatch):
     paths = build(tmp_path)
     script = tmp_path / "script.json"
     script.write_text(
-        json.dumps({"patches": {"discount": str(paths["reference"])}, "judge_block": ["import requests"]})
+        json.dumps({"patches": {"discount": str(paths["reference"])}, "judge_block": ['print("discount"']})
     )
     monkeypatch.setenv("AEH_TASKS_DIR", str(paths["tasks"]))
     monkeypatch.setenv("AEH_TARGETS_DIR", str(paths["targets"]))

@@ -35,7 +35,8 @@ def ensure_database(url: str) -> None:
 def migrate(conn: psycopg.Connection) -> None:
     conn.execute("SELECT pg_advisory_lock(733999)")
     try:
-        conn.execute(resources.files("aeh.sql").joinpath("001_record.sql").read_text())
+        for f in sorted(p for p in resources.files("aeh.sql").iterdir() if p.name.endswith(".sql")):
+            conn.execute(f.read_text())
     finally:
         conn.execute("SELECT pg_advisory_unlock(733999)")
 
@@ -165,6 +166,8 @@ def ledger_check(conn, run_id: str) -> dict:
     ).fetchall()
     by = {r["kind"]: Decimal(r["s"]) for r in log}
     open_res = by.get("reserve", Decimal(0)) + by.get("release", Decimal(0)) - by.get("abandon", Decimal(0))
+    settled = by.get("settle", Decimal(0)) + by.get("reverse", Decimal(0))
+    abandoned = by.get("abandon", Decimal(0)) + by.get("requeued", Decimal(0))
     table = conn.execute(
         "SELECT coalesce(sum(reserved_usd), 0) AS r, coalesce(sum(coalesce(cost_usd, 0) + coalesce(judge_cost_usd, 0)), 0) AS s, "
         "coalesce(sum(abandoned_usd), 0) AS a FROM aeh.attempts WHERE run_id = %s",
@@ -174,7 +177,7 @@ def ledger_check(conn, run_id: str) -> dict:
     total = Decimal(table["s"]) + Decimal(table["a"]) + Decimal(table["r"])
     return {
         "open_reservations_match": open_res == Decimal(table["r"]),
-        "settled_match": by.get("settle", Decimal(0)) == Decimal(table["s"]),
+        "settled_match": settled == Decimal(table["s"]) and abandoned == Decimal(table["a"]),
         "abandoned_usd": float(table["a"]),
         "committed_usd": float(total),
         "budget_usd": float(budget),
@@ -195,3 +198,25 @@ def regraded(conn, run_id: str, attempt_id: int, grade: dict, extra_judge_cost: 
                 "INSERT INTO aeh.spend (run_id, attempt_id, kind, amount_usd) VALUES (%s, %s, 'settle', %s)",
                 (run_id, attempt_id, extra),
             )
+
+
+def requeue_failed(conn, run_id: str) -> int:
+    """Run failed attempts again (a harness fault, not the agent's). What they spent stays counted."""
+    with conn.transaction():
+        rows = conn.execute(
+            "SELECT id, coalesce(cost_usd, 0) + coalesce(judge_cost_usd, 0) AS spent FROM aeh.attempts "
+            "WHERE run_id = %s AND state = 'failed' FOR UPDATE",
+            (run_id,),
+        ).fetchall()
+        for r in rows:
+            if r["spent"]:
+                conn.execute(
+                    "INSERT INTO aeh.spend (run_id, attempt_id, kind, amount_usd) VALUES (%s, %s, 'reverse', %s), (%s, %s, 'requeued', %s)",
+                    (run_id, r["id"], -r["spent"], run_id, r["id"], r["spent"]),
+                )
+            conn.execute(
+                "UPDATE aeh.attempts SET state = 'queued', abandoned_usd = abandoned_usd + %s, cost_usd = NULL, judge_cost_usd = NULL, "
+                "outcome = jsonb_build_object('previous_error', error), error = NULL WHERE id = %s",
+                (r["spent"], r["id"]),
+            )
+        return len(rows)

@@ -43,6 +43,8 @@ def main(argv: list[str] | None = None) -> int:
     g = sub.add_parser("regrade")
     g.add_argument("--run", required=True)
     g.add_argument("--all", action="store_true", help="every finished attempt, not only those whose suite failed")
+    q = sub.add_parser("requeue")
+    q.add_argument("--run", required=True)
     sub.add_parser("report")
     v = sub.add_parser("solve")
     v.add_argument("--issue", required=True, type=Path)
@@ -100,6 +102,13 @@ def main(argv: list[str] | None = None) -> int:
         r = asyncio.run(regrade(a.run, failed_suite_only=not a.all))
         r["export"] = str(export(store.connect(), a.run))
         print(json.dumps(r, indent=1))
+        return 0
+    if a.cmd == "requeue":
+        from . import store
+
+        print(
+            f"requeued {store.requeue_failed(store.connect(), a.run)} failed attempts; run aeh bench again with the same arguments"
+        )
         return 0
     if a.cmd == "report":
         from .report import write

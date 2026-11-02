@@ -122,3 +122,22 @@ def test_regrading_keeps_the_first_grade_and_the_books(toy):
     assert r["ledger"]["settled_match"] and r["ledger"]["within_budget"]
     rows = store.attempts(store.connect(), "toy-regrade")
     assert all(a["grade"]["previous"]["accepted"] is True for a in rows)
+
+
+def test_a_failed_attempt_can_run_again_and_its_spend_still_counts(toy):
+    from aeh import store
+    from aeh.orchestrate import plan, reservation, run
+    from aeh.tasks import load_set
+
+    tasks = load_set("toyset")
+    conn = store.connect()
+    store.migrate(conn)
+    store.create_run(conn, "toy-requeue", "toyset", 50.0, plan(tasks, ["haiku-solo"], 1, 7), {})
+    c = store.claim(conn, "toy-requeue", "w", reservation, lease_s=60)
+    assert store.finish(conn, "toy-requeue", c, "w", "failed", 0.5, 0.0, error="harness fault")
+    assert store.requeue_failed(conn, "toy-requeue") == 1
+    r = asyncio.run(run("toy-requeue", "toyset", ["haiku-solo"], 1, 50.0, tasks=tasks))
+    row = store.attempts(conn, "toy-requeue")[0]
+    assert row["state"] == "done" and float(row["abandoned_usd"]) == 0.5
+    assert row["outcome"]["sessions"] and r["ledger"]["settled_match"] and r["ledger"]["open_reservations_match"]
+    assert r["ledger"]["committed_usd"] >= 0.5

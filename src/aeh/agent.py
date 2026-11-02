@@ -123,6 +123,7 @@ async def run(
         stdout=asyncio.subprocess.PIPE,
         stderr=asyncio.subprocess.PIPE,
         start_new_session=True,
+        limit=64 * 1024 * 1024,  # one stream-json event can carry a whole file a tool read
     )
     assert proc.stdin
     proc.stdin.write(prompt_text.encode())

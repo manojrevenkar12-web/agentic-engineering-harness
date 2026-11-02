@@ -47,7 +47,7 @@ REFERENCE_CODE = PRICE.replace(
 )
 MUTANT_CODE = PRICE.replace("    return max(", "    discount = min(discount, Decimal(1))\n    return max(")
 UNMERGEABLE_CODE = REFERENCE_CODE.replace(
-    "from decimal import Decimal\n", "from decimal import Decimal\n\nimport requests  # noqa: F401\n"
+    "    if not Decimal(0)", '    print("discount", discount)  # debug output left in\n    if not Decimal(0)'
 )
 
 
@@ -94,7 +94,9 @@ def build(root: Path) -> dict[str, Path]:
     ref = _diff(repo, "shop/price.py", REFERENCE_CODE)
     (t / "grader" / "reference.patch").write_text(ref)
     (t / "grader" / "mutants" / "clamps.patch").write_text(_diff(repo, "shop/price.py", MUTANT_CODE))
-    (t / "grader" / "unmergeable" / "adds_dependency.patch").write_text(_diff(repo, "shop/price.py", UNMERGEABLE_CODE))
+    (t / "grader" / "unmergeable" / "leaves_debug_print.patch").write_text(
+        _diff(repo, "shop/price.py", UNMERGEABLE_CODE)
+    )
     return {
         "repo": repo,
         "targets": targets,
