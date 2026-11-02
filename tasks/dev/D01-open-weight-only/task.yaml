@@ -1,0 +1,4 @@
+id: D01-open-weight-only
+title: "Requests that must stay on our own GPUs"
+kind: feature
+target: model-router-platform

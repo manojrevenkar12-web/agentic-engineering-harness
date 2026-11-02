@@ -1,0 +1,4 @@
+id: D06-provider-keys-tenancy
+title: "Provider key listing shows other workspaces' keys"
+kind: bug
+target: model-router-platform

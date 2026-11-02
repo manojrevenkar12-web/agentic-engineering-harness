@@ -1,0 +1,12 @@
+diff --git a/src/mrp/cache.py b/src/mrp/cache.py
+index 14e7280..e8a22b2 100644
+--- a/src/mrp/cache.py
++++ b/src/mrp/cache.py
+@@ -244,6 +244,7 @@ def compress(messages: list[dict], budget_tokens: int, keep_last: int = 4) -> tu
+         return messages, 0
+     system = [m for m in messages if m.get("role") == "system"]
+     rest = [m for m in messages if m.get("role") != "system"]
++    rest = [m for m in rest if m.get("role") != "tool"]
+     old, recent = rest[:-keep_last], rest[-keep_last:]
+     lines = []
+     for m in old:

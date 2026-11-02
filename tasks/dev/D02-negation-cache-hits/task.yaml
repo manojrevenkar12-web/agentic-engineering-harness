@@ -1,0 +1,4 @@
+id: D02-negation-cache-hits
+title: "Semantic cache serves the same answer to a question and its negation"
+kind: bug
+target: model-router-platform

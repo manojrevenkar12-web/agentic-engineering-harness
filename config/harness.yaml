@@ -1,0 +1,13 @@
+# How the harness runs agents. Budgets are in US dollars at list prices, as Claude Code reports them.
+workdir: /tmp/aeh                   # worktrees, transcripts and grading copies (AEH_WORKDIR overrides)
+concurrency: 3                      # attempts running at the same time (the target's tests are CPU-bound)
+slots: 10                           # database + Redis index pairs; attempts and grading lease one each
+lease_seconds: 900                  # an attempt whose worker stops heart-beating is taken over after this
+sessions:                           # hard caps per agent session: passed to Claude Code, and reserved before an attempt starts
+  executor: {max_budget_usd: 1.50, timeout_seconds: 900}
+  reviewer: {max_budget_usd: 0.60, timeout_seconds: 600}
+  selector: {max_budget_usd: 0.40, timeout_seconds: 300}
+services:
+  database_admin_url: postgresql://postgres@localhost:5444/postgres   # AEH_DATABASE_ADMIN_URL overrides
+  redis_url: redis://localhost:6390                                    # AEH_REDIS_URL overrides
+  record_url: postgresql://postgres@localhost:5444/aeh                 # AEH_RECORD_URL overrides

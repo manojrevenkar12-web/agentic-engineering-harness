@@ -1,0 +1,4 @@
+id: D11-models-listing-prices
+title: "List context and prices in /v1/models"
+kind: feature
+target: model-router-platform

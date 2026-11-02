@@ -1,0 +1,26 @@
+diff --git a/src/mrp/health.py b/src/mrp/health.py
+index 61649d8..e5ea2ef 100644
+--- a/src/mrp/health.py
++++ b/src/mrp/health.py
+@@ -38,6 +38,7 @@ class Health:
+     z: float = 3.1
+     recent: dict[tuple[str, str], deque] = field(default_factory=dict)
+     degraded: set[tuple[str, str]] = field(default_factory=set)
++    restored: set[tuple[str, str]] = field(default_factory=set)
+ 
+     def expected_pass(self, task: str, model: str) -> float:
+         c = self.table.cell(task, model)
+@@ -50,7 +51,7 @@ class Health:
+         """Records one checked answer; returns True if the model has just been taken out of rotation."""
+         q = self.recent.setdefault((task, model), deque(maxlen=self.window))
+         q.append(passed)
+-        if (task, model) in self.degraded or len(q) < self.min_samples:
++        if (task, model) in self.degraded or (task, model) in self.restored or len(q) < self.min_samples:
+             return False
+         if wilson_upper(sum(q), len(q), self.z) < self.expected_pass(task, model) - self.margin:
+             self.degraded.add((task, model))
+@@ -62,3 +63,4 @@ class Health:
+ 
+     def restore(self, task: str, model: str) -> None:
+         self.degraded.discard((task, model))
++        self.restored.add((task, model))

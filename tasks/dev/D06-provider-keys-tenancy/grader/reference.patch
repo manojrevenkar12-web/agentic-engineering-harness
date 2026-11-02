@@ -1,0 +1,13 @@
+diff --git a/src/mrp/app.py b/src/mrp/app.py
+index 3e2c393..1d009f9 100644
+--- a/src/mrp/app.py
++++ b/src/mrp/app.py
+@@ -631,7 +631,7 @@ def create_app(
+ 
+     @app.get("/v1/provider-keys")
+     async def list_keys(ws: Workspace = Depends(workspace)):
+-        async with db.owner() as conn:
++        async with db.tenant(ws.id) as conn:
+             rows = await conn.fetch(
+                 "SELECT provider, fingerprint, kek_version, created_at FROM mrp.provider_keys ORDER BY provider"
+             )

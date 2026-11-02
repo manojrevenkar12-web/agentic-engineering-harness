@@ -1,0 +1,4 @@
+id: D10-compress-keeps-tool-results
+title: "History compression separates tool results from their calls"
+kind: bug
+target: model-router-platform

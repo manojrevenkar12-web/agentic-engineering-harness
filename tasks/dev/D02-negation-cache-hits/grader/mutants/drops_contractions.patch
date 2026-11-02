@@ -1,0 +1,23 @@
+diff --git a/src/mrp/cache.py b/src/mrp/cache.py
+index 66d71c6..bb0468b 100644
+--- a/src/mrp/cache.py
++++ b/src/mrp/cache.py
+@@ -102,9 +102,6 @@ FILLER = set(
+         "okay",
+         "regards",
+         "cheers",
+-        "no",
+-        "not",
+-        "never",
+     ]
+ )
+ _TOKEN = re.compile(r"[a-z0-9€$%]+(?:[.,][0-9]+)*")
+@@ -118,8 +115,6 @@ def slots(text: str) -> list[str]:
+     or an added "not" does not.
+     """
+     t = unicodedata.normalize("NFKC", text).lower().replace("’", "'")
+-    for k, v in CONTRACTIONS.items():
+-        t = re.sub(rf"\b{re.escape(k)}\b", v, t)
+     return sorted(w for w in _TOKEN.findall(t) if w not in FILLER)
+ 
+ 

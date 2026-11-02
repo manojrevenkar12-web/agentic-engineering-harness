@@ -1,0 +1,14 @@
+diff --git a/src/mrp/cache.py b/src/mrp/cache.py
+index 66d71c6..14e7280 100644
+--- a/src/mrp/cache.py
++++ b/src/mrp/cache.py
+@@ -102,9 +102,6 @@ FILLER = set(
+         "okay",
+         "regards",
+         "cheers",
+-        "no",
+-        "not",
+-        "never",
+     ]
+ )
+ _TOKEN = re.compile(r"[a-z0-9€$%]+(?:[.,][0-9]+)*")

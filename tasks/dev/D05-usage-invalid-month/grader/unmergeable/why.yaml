@@ -1,0 +1,1 @@
+swallows_every_error: turns every failure, database errors included, into a 422 about the month

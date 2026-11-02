@@ -1,0 +1,4 @@
+id: D09-approval-lookalike-domains
+title: "Emails to look-alike domains skip approval"
+kind: bug
+target: model-router-platform

@@ -1,0 +1,4 @@
+id: D07-german-task-classification
+title: "Classify German requests"
+kind: feature
+target: model-router-platform

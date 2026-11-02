@@ -1,0 +1,9 @@
+diff --git a/src/mrp/health.py b/src/mrp/health.py
+index 4e248cb..61649d8 100644
+--- a/src/mrp/health.py
++++ b/src/mrp/health.py
+@@ -62,4 +62,3 @@ class Health:
+ 
+     def restore(self, task: str, model: str) -> None:
+         self.degraded.discard((task, model))
+-        self.recent.pop((task, model), None)

@@ -1,0 +1,22 @@
+diff --git a/src/mrp/app.py b/src/mrp/app.py
+index 1d009f9..a836608 100644
+--- a/src/mrp/app.py
++++ b/src/mrp/app.py
+@@ -318,7 +318,16 @@ def create_app(
+             "object": "list",
+             "data": [{"id": "auto", "object": "model", "owned_by": "router"}]
+             + [
+-                {"id": m.id, "object": "model", "owned_by": m.provider, "open_weight": m.open_weight}
++                {
++                    "id": m.id,
++                    "object": "model",
++                    "owned_by": m.provider,
++                    "open_weight": m.open_weight,
++                    "context": m.context,
++                    "price_in": str(m.price_in),
++                    "price_out": str(m.price_out),
++                    **({"fine_tuned_for": m.fine_tuned_for} if m.fine_tuned_for else {}),
++                }
+                 for m in catalog.models.values()
+             ],
+         }

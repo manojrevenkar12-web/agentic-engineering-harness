@@ -1,0 +1,12 @@
+diff --git a/src/mrp/cache.py b/src/mrp/cache.py
+index 66d71c6..491be60 100644
+--- a/src/mrp/cache.py
++++ b/src/mrp/cache.py
+@@ -103,7 +103,6 @@ FILLER = set(
+         "regards",
+         "cheers",
+         "no",
+-        "not",
+         "never",
+     ]
+ )

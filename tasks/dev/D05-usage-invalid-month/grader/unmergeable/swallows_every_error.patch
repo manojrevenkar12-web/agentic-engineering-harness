@@ -1,0 +1,18 @@
+diff --git a/src/mrp/app.py b/src/mrp/app.py
+index 1d009f9..8d9d07c 100644
+--- a/src/mrp/app.py
++++ b/src/mrp/app.py
+@@ -610,8 +610,11 @@ def create_app(
+ 
+     @app.get("/v1/usage")
+     async def usage(month: str, ws: Workspace = Depends(workspace)):
+-        async with db.tenant(ws.id) as conn:
+-            return await ledger.usage_report(conn, month)
++        try:
++            async with db.tenant(ws.id) as conn:
++                return await ledger.usage_report(conn, month)
++        except Exception:
++            raise HTTPException(422, "month must be given as YYYY-MM") from None
+ 
+     @app.put("/v1/provider-keys/{provider}")
+     async def put_key(provider: str, body: ProviderKeyIn, ws: Workspace = Depends(workspace)):

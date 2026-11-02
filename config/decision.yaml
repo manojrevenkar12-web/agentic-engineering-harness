@@ -1,0 +1,9 @@
+# How the benchmark turns into a decision. Thresholds, not taste.
+baseline: haiku-solo
+confidence: 0.90                    # two-sided bootstrap intervals over tasks
+bootstrap_samples: 4000
+# A candidate replaces the baseline when either holds:
+#   better   its accepted-rate lift over the baseline has a lower bound above 0
+#   cheaper  the lift's interval contains 0, its lower bound is above -max_quality_loss,
+#            and its cost per accepted change is lower
+max_quality_loss: 0.10

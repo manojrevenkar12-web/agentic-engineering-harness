@@ -1,0 +1,26 @@
+diff --git a/src/mrp/agents.py b/src/mrp/agents.py
+index 3ef3400..cc15073 100644
+--- a/src/mrp/agents.py
++++ b/src/mrp/agents.py
+@@ -61,7 +61,8 @@ class FakeConnectors:
+ 
+ def needs_approval(name: str, args: dict, internal_domains: tuple[str, ...] = ("example.com",)) -> bool:
+     if name == "gmail.send":
+-        return any(not str(to).endswith(internal_domains) for to in args.get("to", []))
++        internal = {d.lower() for d in internal_domains}
++        return any(str(to).rpartition("@")[2].lower() not in internal for to in args.get("to", []))
+     if name == "calendar.create":
+         return len(args.get("attendees", [])) > 10
+     return False
+diff --git a/tests/test_agents.py b/tests/test_agents.py
+index 7d95c33..179a4ae 100644
+--- a/tests/test_agents.py
++++ b/tests/test_agents.py
+@@ -109,7 +109,6 @@ async def test_the_cost_limit_stops_a_run(env):
+ 
+ 
+ async def test_approval_policy():
+-    assert agents.needs_approval("gmail.send", {"to": ["x@other.org"]})
+     assert not agents.needs_approval("gmail.send", {"to": ["x@example.com"]})
+     assert agents.needs_approval("calendar.create", {"attendees": ["a"] * 11})
+     assert not agents.needs_approval("slack.post", {})

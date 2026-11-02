@@ -1,0 +1,4 @@
+id: D04-health-restore
+title: "A model put back into rotation is excluded again at once"
+kind: bug
+target: model-router-platform

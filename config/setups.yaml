@@ -1,0 +1,14 @@
+# The ways of working being compared. Every setup gets the same task brief and the same executor
+# instructions (config/prompts/executor.md); what differs is the model and the flow around it.
+#   solo     one agent works the task.
+#   review   one agent works the task; a second session with fresh context reviews the diff against
+#            AGENTS.md and the brief, runs the tests, and the first agent addresses its findings once.
+#   best_of  n agents work the task in separate worktrees at the same time; a selector session reads
+#            both diffs and the visible test results and picks one.
+setups:
+  haiku-solo:    {model: haiku,  flow: solo}
+  haiku-review:  {model: haiku,  flow: review, reviewer_model: haiku, max_revisions: 1}
+  haiku-best2:   {model: haiku,  flow: best_of, n: 2, selector_model: haiku}
+  sonnet-solo:   {model: sonnet, flow: solo}
+  sonnet-review: {model: sonnet, flow: review, reviewer_model: sonnet, max_revisions: 1}
+default: haiku-solo                 # what the team does today; candidates must beat it (config/decision.yaml)

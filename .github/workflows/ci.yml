@@ -1,0 +1,98 @@
+name: ci
+
+on:
+  push:
+  pull_request:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  harness:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    services:
+      postgres:
+        image: pgvector/pgvector:pg16
+        env:
+          POSTGRES_PASSWORD: postgres
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U postgres" --health-interval 5s --health-timeout 5s --health-retries 10
+    env:
+      AEH_TEST_DATABASE_URL: postgresql://postgres:postgres@localhost:5432/aeh_test
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+      - run: pip install -e ".[dev]"
+      - run: |
+          ruff check src tests scripts
+          ruff format --check src tests scripts
+      - run: psql postgresql://postgres:postgres@localhost:5432/postgres -c "CREATE DATABASE aeh_test"
+      - name: Unit, isolation and whole-loop tests (toy target, fake agent)
+        run: pytest -q
+
+  graders:
+    # Proves every dev and held-out grader against the real target: task states fail their hidden
+    # tests, references pass, every mutant is caught. No model is called.
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    services:
+      postgres:
+        image: pgvector/pgvector:pg16
+        env:
+          POSTGRES_PASSWORD: postgres
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U postgres" --health-interval 5s --health-timeout 5s --health-retries 10
+      redis:
+        image: redis:7
+        ports: ["6379:6379"]
+    env:
+      AEH_DATABASE_ADMIN_URL: postgresql://postgres:postgres@localhost:5432/postgres
+      AEH_REDIS_URL: redis://localhost:6379
+      AEH_WORKDIR: /tmp/aeh
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+      - name: Install the harness and the target's dependencies
+        run: |
+          pip install -e ".[dev]"
+          git clone --quiet https://github.com/manojrevenkar12-web/model-router-platform.git /tmp/target
+          git -C /tmp/target checkout --quiet "$(python -c "import yaml;print(yaml.safe_load(open('targets/model-router-platform.yaml'))['commit'])")"
+          pip install -e "/tmp/target[dev]"
+          pip uninstall -y model-router-platform   # the graders put each copy's own src/ on PYTHONPATH
+      - name: Prove the graders
+        env:
+          AEH_TARGET_MODEL_ROUTER_PLATFORM: /tmp/target
+        run: |
+          aeh prove --set dev --no-judge
+          if ls tasks/heldout/*/task.yaml >/dev/null 2>&1; then aeh prove --set heldout --no-judge; fi
+
+  web:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    defaults:
+      run:
+        working-directory: web
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+      - run: npm ci
+      - run: npx biome ci src e2e
+      - run: npx tsc --noEmit -p .
+      - run: npm test
+      - run: npx playwright install --with-deps chromium
+      - run: npm run build
+      - run: npx playwright test

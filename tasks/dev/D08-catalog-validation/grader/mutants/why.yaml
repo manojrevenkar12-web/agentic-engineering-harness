@@ -1,0 +1,2 @@
+plain_valueerror: raises ValueError, not CatalogError
+targets_as_percent: accepts 90 as a quality target

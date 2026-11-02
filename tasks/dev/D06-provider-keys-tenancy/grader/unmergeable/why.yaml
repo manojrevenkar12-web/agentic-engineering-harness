@@ -1,0 +1,2 @@
+owner_with_filter: keeps the owner connection on the request path and filters by hand, against invariant
+  1 in AGENTS.md

@@ -1,0 +1,24 @@
+diff --git a/src/mrp/app.py b/src/mrp/app.py
+index 1d009f9..3b75db6 100644
+--- a/src/mrp/app.py
++++ b/src/mrp/app.py
+@@ -13,6 +13,7 @@ import hashlib
+ import json
+ import os
+ import random
++import re
+ import secrets as pysecrets
+ import time
+ import uuid
+@@ -610,6 +611,11 @@ def create_app(
+ 
+     @app.get("/v1/usage")
+     async def usage(month: str, ws: Workspace = Depends(workspace)):
++        try:
++            if not re.fullmatch(r"\d{4}-\d{2}", month):
++                raise ValueError(month)
++        except ValueError:
++            raise HTTPException(422, "month must be given as YYYY-MM") from None
+         async with db.tenant(ws.id) as conn:
+             return await ledger.usage_report(conn, month)
+ 

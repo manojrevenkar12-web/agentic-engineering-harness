@@ -1,0 +1,3 @@
+auto_only: explicit closed models are still served
+explicit_only: automatic routing still uses closed models
+wrong_status: rejects with 400 instead of 422

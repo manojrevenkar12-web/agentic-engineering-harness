@@ -1,0 +1,12 @@
+.grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 13rem), 1fr)); gap: var(--space-4); margin-bottom: var(--space-5); }
+.fact { background: var(--surface); border: var(--border); border-radius: var(--radius-m); padding: var(--space-4); }
+.fact b { display: block; font-size: var(--step-3); line-height: var(--leading-tight); font-variant-numeric: tabular-nums; }
+.fact span { color: var(--muted); font-size: var(--step--1); }
+.wrap { overflow-x: auto; background: var(--surface); border: var(--border); border-radius: var(--radius-m); }
+.table { min-width: 44rem; }
+.table th, .table td { padding: var(--space-2) var(--space-4); border-bottom: 1px solid var(--grid); text-align: left; vertical-align: top; font-size: var(--step--1); }
+.table thead th { color: var(--muted); font-weight: 600; }
+.ok { color: var(--good); font-weight: 650; }
+.no { color: var(--bad); font-weight: 650; }
+.layer { display: inline-block; padding: 0 var(--space-2); border-radius: var(--radius-s); background: var(--accent-soft); margin: 0 var(--space-1) var(--space-1) 0; }
+.table tbody tr:last-child > * { border-bottom: 0; }

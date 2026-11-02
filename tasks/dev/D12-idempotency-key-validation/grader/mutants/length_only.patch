@@ -1,0 +1,18 @@
+diff --git a/src/mrp/app.py b/src/mrp/app.py
+index 1d009f9..c91734c 100644
+--- a/src/mrp/app.py
++++ b/src/mrp/app.py
+@@ -328,6 +328,13 @@ def create_app(
+         req: ChatRequest, ws: Workspace = Depends(workspace), idempotency_key: str | None = Header(None)
+     ):
+         t0 = time.perf_counter()
++        if idempotency_key is not None and (
++            len(idempotency_key) > 255
++        ):
++            return JSONResponse(
++                {"error": {"type": "invalid_idempotency_key", "message": "Idempotency-Key must be 1-255 printable ASCII characters"}},
++                status_code=400,
++            )
+         plan = catalog.plans[ws.plan]
+         key = idempotency_key or f"auto-{uuid.uuid4()}"
+         rhash = ledger.request_hash(req.model_dump(mode="json"))

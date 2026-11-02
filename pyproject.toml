@@ -1,0 +1,37 @@
+[project]
+name = "agentic-engineering-harness"
+version = "0.1.0"
+description = "Run coding agents on a team's backlog in parallel, grade what they produce like a reviewer would, and measure which setup to adopt."
+requires-python = ">=3.11"
+dependencies = [
+  "pyyaml>=6", "psycopg[binary]>=3.1", "psycopg-pool>=3.2", "numpy>=1.26", "fastapi>=0.110", "uvicorn>=0.29", "httpx>=0.27",
+]
+
+[project.optional-dependencies]
+dev = ["pytest>=8", "ruff>=0.5"]
+
+[project.scripts]
+aeh = "aeh.cli:main"
+
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+markers = [
+  "db: needs PostgreSQL (AEH_TEST_DATABASE_URL)",
+  "target: needs the target repository and its services (slow)",
+]
+
+[tool.ruff]
+line-length = 120
+src = ["src", "tests"]
+extend-exclude = ["tasks", "web"]
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "B", "UP"]
+ignore = ["E501"]

@@ -1,0 +1,57 @@
+diff --git a/src/mrp/catalog.py b/src/mrp/catalog.py
+index 7761670..51f9e6a 100644
+--- a/src/mrp/catalog.py
++++ b/src/mrp/catalog.py
+@@ -12,6 +12,10 @@ from pathlib import Path
+ import yaml
+ 
+ 
++class CatalogError(ValueError):
++    """The model catalogue is invalid; the message names what is wrong."""
++
++
+ @dataclass(frozen=True)
+ class Model:
+     id: str
+@@ -78,9 +82,28 @@ def load(path: str | None = None) -> Catalog:
+         )
+         for k, v in raw["plans"].items()
+     }
++    _validate(models, raw["quality_targets"], plans, Decimal(str(raw["cache"]["cached_answer_charge"])))
+     return Catalog(models, raw["quality_targets"], plans, Decimal(str(raw["cache"]["cached_answer_charge"])))
+ 
+ 
++def _validate(
++    models: dict[str, Model], targets: dict[str, float], plans: dict[str, Plan], cached: Decimal
++) -> None:
++    for m in models.values():
++        if m.price_in < 0 or m.price_out < 0:
++            raise CatalogError(f"model {m.id}: prices must not be negative")
++        if m.context <= 0:
++            raise CatalogError(f"model {m.id}: context must be a positive number of tokens")
++    for name, t in targets.items():
++        if not 0 < float(t) <= 1:
++            raise CatalogError(f"quality target {name}: {t} is not a share in (0, 1]")
++    for p in plans.values():
++        if p.max_request_cost < 0 or p.markup < 0:
++            raise CatalogError(f"plan {p.name}: max_request_cost and markup must not be negative")
++    if not 0 <= cached <= 1:
++        raise CatalogError(f"cache: cached_answer_charge {cached} is not a share in [0, 1]")
++
++
+ def estimate_tokens(text: str) -> int:
+     """About four characters per token for English; used only for estimates, never for billing."""
+     return max(1, math.ceil(len(text) / 4))
+diff --git a/src/mrp/config/models.yaml b/src/mrp/config/models.yaml
+index 650819e..c4fbfb8 100644
+--- a/src/mrp/config/models.yaml
++++ b/src/mrp/config/models.yaml
+@@ -12,7 +12,7 @@ models:
+   general-b:        {provider: closed-b, upstream: "openai/gpt-4.1", price_in: 1.84, price_out: 7.36, context: 128000, open_weight: false}
+   general-b-mini:   {provider: closed-b, upstream: "openai/gpt-4.1-mini", price_in: 0.37, price_out: 1.47, context: 128000, open_weight: false}
+   open-70b:         {provider: self-hosted, upstream: "hosted_vllm/llama-70b-instruct", price_in: 0.45, price_out: 0.60, context: 64000, open_weight: true}
+-  open-8b:          {provider: self-hosted, upstream: "hosted_vllm/llama-8b-instruct", price_in: 0.06, price_out: 0.09, context: 32000, open_weight: true}
++  open-8b:          {provider: self-hosted, upstream: "hosted_vllm/llama-8b-instruct", price_in: 0.05, price_out: 0.08, context: 32000, open_weight: true}
+   open-8b-extract:  {provider: self-hosted, upstream: "hosted_vllm/llama-8b-extract-ft", price_in: 0.06, price_out: 0.09, context: 32000, open_weight: true, fine_tuned_for: extraction}
+ 
+ # Quality targets a request can ask for (share of answers that pass the task's grader).

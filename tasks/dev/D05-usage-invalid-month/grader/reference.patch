@@ -1,0 +1,23 @@
+diff --git a/src/mrp/app.py b/src/mrp/app.py
+index 1d009f9..e23211e 100644
+--- a/src/mrp/app.py
++++ b/src/mrp/app.py
+@@ -19,6 +19,7 @@ import uuid
+ from collections.abc import AsyncIterator, Mapping
+ from contextlib import asynccontextmanager
+ from dataclasses import dataclass, field
++from datetime import datetime
+ from decimal import Decimal
+ from pathlib import Path
+ from typing import Any
+@@ -610,6 +611,10 @@ def create_app(
+ 
+     @app.get("/v1/usage")
+     async def usage(month: str, ws: Workspace = Depends(workspace)):
++        try:
++            datetime.strptime(month, "%Y-%m")
++        except ValueError:
++            raise HTTPException(422, "month must be given as YYYY-MM") from None
+         async with db.tenant(ws.id) as conn:
+             return await ledger.usage_report(conn, month)
+ 

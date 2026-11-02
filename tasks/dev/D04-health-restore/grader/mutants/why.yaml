@@ -1,0 +1,4 @@
+clears_but_keeps_degraded: does not put the model back
+global_minimum_raised: also triples the detection window for every model; an existing
+  test depends on it
+never_again: a restored model can never be excluded again

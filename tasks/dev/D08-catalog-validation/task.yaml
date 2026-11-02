@@ -1,0 +1,4 @@
+id: D08-catalog-validation
+title: "Refuse a broken model catalogue at start-up"
+kind: feature
+target: model-router-platform

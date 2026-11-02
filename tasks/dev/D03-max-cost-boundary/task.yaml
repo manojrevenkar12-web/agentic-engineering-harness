@@ -1,0 +1,4 @@
+id: D03-max-cost-boundary
+title: "Requests at exactly the plan's cost limit are refused"
+kind: bug
+target: model-router-platform

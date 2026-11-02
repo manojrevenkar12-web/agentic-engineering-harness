@@ -1,0 +1,3 @@
+http_exception: returns the wrong error shape
+length_only: accepts empty and non-ASCII keys
+truncates: silently truncates instead of rejecting

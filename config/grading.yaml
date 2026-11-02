@@ -1,0 +1,20 @@
+# What "accepted" means. A change is accepted when all of these hold:
+#   resolved      the task's hidden tests pass
+#   no_regression the task state's own test suite passes (original test files, so edited tests do not count)
+#   static        format, lint and type checks pass
+#   review        the review judge finds no blocking issue
+# Grading runs the target's whole test suite and its static checks: CPU- and memory-heavy, so only
+# this many run at once in one process. Type checking shares one mypy cache per target and takes a
+# file lock, which turns a 60-second cold check into a couple of seconds.
+concurrency: 2
+judge:
+  model: sonnet
+  max_budget_usd: 0.40
+  timeout_seconds: 240
+  retries: 1                        # a judge call that stalls or answers without a verdict is asked once more
+  samples: 1                        # judge calls per patch; disagreement across samples is reported
+# Deterministic diff checks. These are findings shown to the judge and in the report; the ones under
+# blocking also block acceptance on their own.
+diff_checks:
+  blocking: [deletes_test, removes_assertions, touches_invariant_marker, skips_tests]
+  max_files_changed: 12

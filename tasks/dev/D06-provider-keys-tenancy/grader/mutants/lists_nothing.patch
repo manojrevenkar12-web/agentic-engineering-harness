@@ -1,0 +1,13 @@
+diff --git a/src/mrp/app.py b/src/mrp/app.py
+index 3e2c393..b70a8de 100644
+--- a/src/mrp/app.py
++++ b/src/mrp/app.py
+@@ -633,7 +633,7 @@ def create_app(
+     async def list_keys(ws: Workspace = Depends(workspace)):
+         async with db.owner() as conn:
+             rows = await conn.fetch(
+-                "SELECT provider, fingerprint, kek_version, created_at FROM mrp.provider_keys ORDER BY provider"
++                "SELECT provider, fingerprint, kek_version, created_at FROM mrp.provider_keys WHERE false ORDER BY provider"
+             )
+         return [dict(r) for r in rows]
+ 

@@ -1,0 +1,13 @@
+diff --git a/src/mrp/app.py b/src/mrp/app.py
+index 1d009f9..6591e6d 100644
+--- a/src/mrp/app.py
++++ b/src/mrp/app.py
+@@ -329,7 +329,7 @@ def create_app(
+     ):
+         t0 = time.perf_counter()
+         plan = catalog.plans[ws.plan]
+-        key = idempotency_key or f"auto-{uuid.uuid4()}"
++        key = (idempotency_key or "").strip()[:255] or f"auto-{uuid.uuid4()}"
+         rhash = ledger.request_hash(req.model_dump(mode="json"))
+         messages = [m.model_dump() for m in req.messages]
+         saved = 0

@@ -1,0 +1,3 @@
+case_sensitive: Bob@EXAMPLE.com needs approval
+first_only: checks only the first recipient
+suffix_match: still treats notexample.com as internal

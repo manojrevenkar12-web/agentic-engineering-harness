@@ -1,0 +1,15 @@
+diff --git a/src/mrp/agents.py b/src/mrp/agents.py
+index e65307a..3ef3400 100644
+--- a/src/mrp/agents.py
++++ b/src/mrp/agents.py
+@@ -61,9 +61,7 @@ class FakeConnectors:
+ 
+ def needs_approval(name: str, args: dict, internal_domains: tuple[str, ...] = ("example.com",)) -> bool:
+     if name == "gmail.send":
+-        return any(
+-            not str(to).endswith(tuple("@" + d for d in internal_domains)) for to in args.get("to", [])
+-        )
++        return any(not str(to).endswith(internal_domains) for to in args.get("to", []))
+     if name == "calendar.create":
+         return len(args.get("attendees", [])) > 10
+     return False

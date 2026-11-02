@@ -1,0 +1,2 @@
+case_sensitive: breaks on capitalised German nouns and on English
+no_umlauts: "misses 'Schritt f\xFCr Schritt'"

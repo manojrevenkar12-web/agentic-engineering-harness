@@ -1,0 +1,1 @@
+fix_and_drop_old_test: fixes the check but deletes an existing assertion

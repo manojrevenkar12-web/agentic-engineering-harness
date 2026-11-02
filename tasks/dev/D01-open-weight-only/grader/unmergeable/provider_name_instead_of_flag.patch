@@ -1,0 +1,35 @@
+diff --git a/src/mrp/app.py b/src/mrp/app.py
+index 1d009f9..d29dfdd 100644
+--- a/src/mrp/app.py
++++ b/src/mrp/app.py
+@@ -99,6 +99,7 @@ class Options(BaseModel):
+     max_cost: Decimal | None = None
+     fallbacks: list[str] = Field(default_factory=list)
+     compress_history: bool = True
++    open_weight_only: bool = False
+ 
+ 
+ class ChatRequest(BaseModel):
+@@ -256,7 +257,13 @@ def create_app(
+             m = catalog.model(req.model) if req.model in catalog.models else None
+             if m is None:
+                 raise HTTPException(404, f"unknown model '{req.model}'")
++            if req.mrp.open_weight_only and m.provider != "self-hosted":
++                raise HTTPException(
++                    422, f"model '{m.id}' is not open-weight and the request asks for open_weight_only"
++                )
+             fb = [catalog.model(f) for f in req.mrp.fallbacks if f in catalog.models]
++            if req.mrp.open_weight_only:
++                fb = [f for f in fb if f.provider == "self-hosted"]
+             return router.Route(
+                 task,
+                 target,
+@@ -268,6 +275,8 @@ def create_app(
+                 table.cell(task, m.id).lower,
+             )
+         allowed = set(catalog.models) - health.excluded(task)
++        if req.mrp.open_weight_only:
++            allowed = {m for m in allowed if catalog.models[m].provider == "self-hosted"}
+         return router.decide(
+             catalog, table, task, target, tin, tout, max_cost, allowed, cascade=not req.stream
+         )

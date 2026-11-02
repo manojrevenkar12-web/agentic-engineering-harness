@@ -1,0 +1,4 @@
+id: D05-usage-invalid-month
+title: "Usage report answers 500 to a malformed month"
+kind: bug
+target: model-router-platform

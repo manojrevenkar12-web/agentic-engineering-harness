@@ -1,0 +1,3 @@
+drops_tool_messages: throws tool results away
+never_compress_with_tools: turns compression off for every conversation that ever used a tool
+one_step_only: keeps only one of several consecutive tool results

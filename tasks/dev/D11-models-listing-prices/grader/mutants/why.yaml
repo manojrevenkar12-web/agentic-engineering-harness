@@ -1,0 +1,2 @@
+always_fine_tuned: adds an empty fine_tuned_for to every model
+with_markup: shows a price with the team markup

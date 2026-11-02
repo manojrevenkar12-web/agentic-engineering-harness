@@ -1,0 +1,131 @@
+/* Design tokens: components use these names only. */
+:root {
+  color-scheme: light;
+  --paper: #eef1f5;
+  --surface: #ffffff;
+  --ink: #111722;
+  --muted: #566074;
+  --rule: #cdd4de;
+  --grid: #e1e6ed;
+  --accent: #2346c8;
+  --accent-soft: #dfe6fb;
+  --neutral: #8a93a6;
+  --good: #1b7a52;
+  --bad: #b4432a;
+  --bad-soft: #f6e1db;
+  --money: #0d6f68;
+  --focus: #b05e00;
+
+  --font: "Schibsted Grotesk Variable", system-ui, sans-serif;
+  --step--1: 0.8125rem;
+  --step-0: 0.9375rem;
+  --step-1: 1.125rem;
+  --step-2: 1.375rem;
+  --step-3: 1.75rem;
+  --step-4: 2.625rem;
+  --leading: 1.55;
+  --leading-tight: 1.12;
+
+  --space-1: 0.25rem;
+  --space-2: 0.5rem;
+  --space-3: 0.75rem;
+  --space-4: 1rem;
+  --space-5: 1.5rem;
+  --space-6: 2rem;
+  --space-7: 3rem;
+  --space-8: 4.5rem;
+  --radius-s: 4px;
+  --radius-m: 12px;
+  --measure: 66ch;
+  --page: 1120px;
+  --gutter: 16px;
+  --border: 1px solid var(--rule);
+  --chart-text: 11px;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    color-scheme: dark;
+    --paper: #0f141c;
+    --surface: #161d27;
+    --ink: #e6ebf2;
+    --muted: #9aa6b8;
+    --rule: #2a3442;
+    --grid: #1f2833;
+    --accent: #8ea7ff;
+    --accent-soft: #222f52;
+    --neutral: #7d889a;
+    --good: #5fc79a;
+    --bad: #f08f77;
+    --bad-soft: #3b231d;
+    --money: #5cc8bd;
+    --focus: #ffb35c;
+  }
+}
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --paper: #0f141c;
+  --surface: #161d27;
+  --ink: #e6ebf2;
+  --muted: #9aa6b8;
+  --rule: #2a3442;
+  --grid: #1f2833;
+  --accent: #8ea7ff;
+  --accent-soft: #222f52;
+  --neutral: #7d889a;
+  --good: #5fc79a;
+  --bad: #f08f77;
+  --bad-soft: #3b231d;
+  --money: #5cc8bd;
+  --focus: #ffb35c;
+}
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+html {
+  font-family: var(--font);
+  background: var(--paper);
+  color: var(--ink);
+}
+body {
+  margin: 0;
+  background: var(--paper);
+  line-height: var(--leading);
+  font-size: var(--step-0);
+}
+a {
+  color: var(--accent);
+  text-underline-offset: 3px;
+}
+:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 3px;
+}
+h1,
+h2,
+h3 {
+  line-height: var(--leading-tight);
+  letter-spacing: -0.015em;
+  margin: 0;
+}
+p {
+  max-width: var(--measure);
+}
+table {
+  border-collapse: collapse;
+  width: 100%;
+}
+td,
+dd,
+.num {
+  font-variant-numeric: tabular-nums;
+}
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}

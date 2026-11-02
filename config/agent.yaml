@@ -1,0 +1,26 @@
+# What a coding agent may do. Least privilege: it edits files and runs the project's own checks in
+# its worktree, nothing else. File tools are confined to the worktree (--restricted); anything not
+# listed is refused without asking (--permission-mode dontAsk) and shows up as a denial.
+binary: claude                      # AEH_AGENT_BIN overrides (tests use a fake agent)
+tools: [Read, Edit, Write, Glob, Grep, Bash]
+allowed:
+  - Read
+  - Edit
+  - Write
+  - Glob
+  - Grep
+  - "Bash(python3 -m pytest:*)"
+  - "Bash(python3 -m ruff:*)"
+  - "Bash(python3 -m mypy:*)"
+  - "Bash(scripts/check.sh:*)"
+  - "Bash(git diff:*)"
+  - "Bash(git status:*)"
+  - "Bash(ls:*)"
+permission_mode: dontAsk
+reviewer_allowed:                   # reviewers read and run tests; they never edit
+  - Read
+  - Glob
+  - Grep
+  - "Bash(python3 -m pytest:*)"
+  - "Bash(git diff:*)"
+  - "Bash(git status:*)"

@@ -1,0 +1,4 @@
+id: D12-idempotency-key-validation
+title: "Reject unusable Idempotency-Key headers"
+kind: feature
+target: model-router-platform

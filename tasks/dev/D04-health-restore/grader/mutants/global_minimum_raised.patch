@@ -1,0 +1,20 @@
+diff --git a/src/mrp/health.py b/src/mrp/health.py
+index 61649d8..7327ff0 100644
+--- a/src/mrp/health.py
++++ b/src/mrp/health.py
+@@ -32,8 +32,8 @@ def wilson_upper(successes: float, trials: float, z: float = 1.645) -> float:
+ @dataclass
+ class Health:
+     table: QualityTable
+-    window: int = 200
+-    min_samples: int = 100
++    window: int = 400
++    min_samples: int = 300
+     margin: float = 0.03
+     z: float = 3.1
+     recent: dict[tuple[str, str], deque] = field(default_factory=dict)
+@@ -62,3 +62,4 @@ class Health:
+ 
+     def restore(self, task: str, model: str) -> None:
+         self.degraded.discard((task, model))
++        self.recent.pop((task, model), None)

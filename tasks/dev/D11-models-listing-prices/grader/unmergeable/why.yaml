@@ -1,0 +1,1 @@
+float_prices: puts prices through float, against the Decimal convention for money

@@ -1,0 +1,13 @@
+diff --git a/src/mrp/router.py b/src/mrp/router.py
+index d54d537..eff9fc7 100644
+--- a/src/mrp/router.py
++++ b/src/mrp/router.py
+@@ -216,7 +216,7 @@ def decide(
+     def cost(m: Model) -> Decimal:
+         return m.cost(tokens_in, tokens_out)
+ 
+-    affordable = [m for m in cands if cost(m) < max_cost]
++    affordable = [m for m in cands if float(cost(m)) <= float(max_cost)]
+     if not affordable:
+         raise NoRoute(f"the cheapest model costs more than the {max_cost} limit")
+     meeting = sorted((m for m in affordable if q(m) >= target), key=lambda m: (cost(m), -q(m)))

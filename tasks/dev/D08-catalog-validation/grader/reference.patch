@@ -1,0 +1,44 @@
+diff --git a/src/mrp/catalog.py b/src/mrp/catalog.py
+index 7761670..51f9e6a 100644
+--- a/src/mrp/catalog.py
++++ b/src/mrp/catalog.py
+@@ -12,6 +12,10 @@ from pathlib import Path
+ import yaml
+ 
+ 
++class CatalogError(ValueError):
++    """The model catalogue is invalid; the message names what is wrong."""
++
++
+ @dataclass(frozen=True)
+ class Model:
+     id: str
+@@ -78,9 +82,28 @@ def load(path: str | None = None) -> Catalog:
+         )
+         for k, v in raw["plans"].items()
+     }
++    _validate(models, raw["quality_targets"], plans, Decimal(str(raw["cache"]["cached_answer_charge"])))
+     return Catalog(models, raw["quality_targets"], plans, Decimal(str(raw["cache"]["cached_answer_charge"])))
+ 
+ 
++def _validate(
++    models: dict[str, Model], targets: dict[str, float], plans: dict[str, Plan], cached: Decimal
++) -> None:
++    for m in models.values():
++        if m.price_in < 0 or m.price_out < 0:
++            raise CatalogError(f"model {m.id}: prices must not be negative")
++        if m.context <= 0:
++            raise CatalogError(f"model {m.id}: context must be a positive number of tokens")
++    for name, t in targets.items():
++        if not 0 < float(t) <= 1:
++            raise CatalogError(f"quality target {name}: {t} is not a share in (0, 1]")
++    for p in plans.values():
++        if p.max_request_cost < 0 or p.markup < 0:
++            raise CatalogError(f"plan {p.name}: max_request_cost and markup must not be negative")
++    if not 0 <= cached <= 1:
++        raise CatalogError(f"cache: cached_answer_charge {cached} is not a share in [0, 1]")
++
++
+ def estimate_tokens(text: str) -> int:
+     """About four characters per token for English; used only for estimates, never for billing."""
+     return max(1, math.ceil(len(text) / 4))

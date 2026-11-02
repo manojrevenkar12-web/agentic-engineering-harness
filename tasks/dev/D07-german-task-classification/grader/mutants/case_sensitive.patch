@@ -1,0 +1,37 @@
+diff --git a/src/mrp/router.py b/src/mrp/router.py
+index e609bf0..230ebf5 100644
+--- a/src/mrp/router.py
++++ b/src/mrp/router.py
+@@ -37,18 +37,27 @@ def classify(messages: list[dict], hint: str | None = None, response_format: dic
+     if response_format and response_format.get("type") in ("json_object", "json_schema"):
+         return "extraction"
+     last = str(messages[-1].get("content", "")) if messages else ""
+-    low = last.lower()
+-    if re.search(r"\b(extract|pull out|parse|fill (in )?the fields|as json)\b", low):
++    low = last
++    if re.search(r"\b(extract|pull out|parse|fill (in )?the fields|as json|extrahiere\w*|lies .*\baus|als json)\b", low):
+         return "extraction"
+-    if re.search(r"\b(classify|categori[sz]e|label|sentiment|which category)\b", low):
++    if re.search(
++        r"\b(classify|categori[sz]e|label|sentiment|which category|klassifizier\w*|kategorisier\w*|ordne .*\bzu|einordnen|stimmung)\b",
++        low,
++    ):
+         return "classification"
+     if "```" in last or re.search(
+         r"\b(write|fix|refactor|implement) (a |the )?(function|code|class|test|script|query)\b", low
++    ) or re.search(
++        r"\b(schreib\w*|korrigier\w*|implementier\w*|repariere?) (eine?n? |die |den |das )?(funktion|code|klasse|test|skript|abfrage)\b",
++        low,
+     ):
+         return "code"
+-    if re.search(r"\b(summari[sz]e|tl;dr|summary of|key points)\b", low):
++    if re.search(r"\b(summari[sz]e|tl;dr|summary of|key points|zusammenfassung)\b|\bfasse\b.*\bzusammen\b", low):
+         return "summarization"
+-    if re.search(r"\b(prove|step by step|reason|plan the|calculate|why does|derive)\b", low):
++    if re.search(
++        r"\b(prove|step by step|reason|plan the|calculate|why does|derive|schritt für schritt|berechne\w*|begründe\w*|beweise\w*|warum)\b",
++        low,
++    ):
+         return "reasoning"
+     return "chat"
+ 

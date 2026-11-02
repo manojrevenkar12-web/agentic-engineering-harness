@@ -1,0 +1,2 @@
+hardcoded_model_ids: hard-codes today's open-weight model ids instead of the catalogue's open_weight flag
+provider_name_instead_of_flag: uses the provider name as a stand-in for the open_weight flag
