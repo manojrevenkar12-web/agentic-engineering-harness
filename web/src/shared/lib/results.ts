@@ -22,6 +22,8 @@ export interface SetupResult {
   rejected_after_tests_pass: number;
   tests_pass_count: number;
   rejection_layers: Record<string, number>;
+  /** Rejected only by `ruff format`: a formatter hook would have accepted them. Older results lack it. */
+  format_only?: number;
   cost_usd_total: number;
   cost_usd_per_attempt: number;
   cost_per_accepted: { point?: number | null; lo?: number | null; hi?: number | null };

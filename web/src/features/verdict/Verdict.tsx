@@ -39,6 +39,7 @@ export function Verdict({ r }: { r: Results }) {
                 <span className={s.name}>{setupName(key, r.setups[key])}</span>
                 <span className={s.sub}>
                   {share(acc)} merged, {share(pass)} pass tests ({x.attempts} attempts)
+                  {x.format_only ? `; ${x.format_only} stopped only by formatting` : ""}
                 </span>
               </div>
               <div className={s.track} aria-hidden="true">

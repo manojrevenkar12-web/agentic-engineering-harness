@@ -27,7 +27,7 @@ export function Budget({ r }: { r: Results }) {
       </div>
       <div className={s.fact}>
         <b>{denied}</b>
-        <span>actions refused by the agents' permissions (network, installs, files outside the worktree)</span>
+        <span>commands outside the agents' allow-list, refused without asking and recorded</span>
       </div>
       {fastest ? (
         <div className={s.fact}>

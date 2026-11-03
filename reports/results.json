@@ -1,0 +1,1517 @@
+{
+ "generated_at": "2026-11-03T02:14:17.354639+00:00",
+ "proofs": {
+  "dev": {
+   "set": "dev",
+   "tasks": 12,
+   "proven": 12,
+   "mutants": 29,
+   "mutants_caught": 29,
+   "unmergeable": 9,
+   "unmergeable_rejected": 9,
+   "unmergeable_rejected_by": {
+    "static": 0,
+    "diff": 1,
+    "judge": 8,
+    "none": 0
+   },
+   "judge_passes_references": "12/12",
+   "judge_cost_usd": 0.3875,
+   "with_judge": true,
+   "tasks_detail": [
+    {
+     "task": "D01-open-weight-only",
+     "state": {
+      "hidden_failed": 3,
+      "suite_failed": 0,
+      "suite_passed": 49
+     },
+     "reference": {
+      "accepted": true,
+      "reasons": [],
+      "judge": true,
+      "static": {
+       "format": true,
+       "lint": true,
+       "types": true
+      }
+     },
+     "mutants": [
+      {
+       "name": "auto_only",
+       "caught": true,
+       "why": "explicit closed models are still served"
+      },
+      {
+       "name": "explicit_only",
+       "caught": true,
+       "why": "automatic routing still uses closed models"
+      },
+      {
+       "name": "no_cache_check",
+       "caught": true,
+       "why": "serves a cached answer that a closed model produced"
+      },
+      {
+       "name": "wrong_status",
+       "caught": true,
+       "why": "rejects with 400 instead of 422"
+      }
+     ],
+     "unmergeable": [
+      {
+       "name": "hardcoded_model_ids",
+       "tests_pass": true,
+       "rejected_by": "judge",
+       "why": "hard-codes today's open-weight model ids instead of the catalogue's open_weight flag",
+       "judge_blocking": [
+        "The change hard-codes the open-weight model IDs (\"open-70b\", \"open-8b\", \"open-8b-extract\") in four places in src/mrp/app.py instead of using the catalogue's `open_weight` marking, as the task requires. A newly added or re-marked model would be wrongly allowed or excluded, and the cache check would break the same way."
+       ]
+      },
+      {
+       "name": "provider_name_instead_of_flag",
+       "tests_pass": true,
+       "rejected_by": "judge",
+       "why": "uses the provider name as a stand-in for the open_weight flag",
+       "judge_blocking": [
+        "The change decides what is open-weight by checking `provider == \"self-hosted\"` in four places in src/mrp/app.py (the named-model check, the fallback filter, the router's allowed set and the cache-hit filter). The task says to use the catalogue's `open_weight` flag, which already exists on the model (`m.open_weight`). The provider check is a proxy for that flag. A model with `open_weight: true` on another provider would be wrongly refused, and a self-hosted model not marked open-weight would be wrongly allowed."
+       ]
+      }
+     ],
+     "judge_cost_usd": 0.079771,
+     "proven": true
+    },
+    {
+     "task": "D02-negation-cache-hits",
+     "state": {
+      "hidden_failed": 5,
+      "suite_failed": 0,
+      "suite_passed": 49
+     },
+     "reference": {
+      "accepted": true,
+      "reasons": [],
+      "judge": true,
+      "static": {
+       "format": true,
+       "lint": true,
+       "types": true
+      }
+     },
+     "mutants": [
+      {
+       "name": "drops_contractions",
+       "caught": true,
+       "why": "contractions no longer expand, so isn't loses its negation"
+      },
+      {
+       "name": "only_not",
+       "caught": true,
+       "why": "still drops no"
+      }
+     ],
+     "unmergeable": [
+      {
+       "name": "fix_and_lower_threshold",
+       "tests_pass": true,
+       "rejected_by": "judge",
+       "why": "fixes the slots but also lowers the semantic similarity threshold, which nobody asked for and serves more near misses",
+       "judge_blocking": [
+        "The change lowers the default semantic-cache similarity threshold from 0.85 to 0.75. The task doesn't ask for this, and the negation fix doesn't need it. It makes semantic hits more likely for every customer, which risks serving wrong cached answers. AGENTS.md also requires a caching change to rerun `mrp evaluate` and state the measured effect, and nothing shows that was done. Removing \"no\", \"not\" and \"never\" from FILLER is the real fix and should be merged on its own."
+       ]
+      }
+     ],
+     "judge_cost_usd": 0.061604,
+     "proven": true
+    },
+    {
+     "task": "D03-max-cost-boundary",
+     "state": {
+      "hidden_failed": 1,
+      "suite_failed": 0,
+      "suite_passed": 49
+     },
+     "reference": {
+      "accepted": true,
+      "reasons": [],
+      "judge": true,
+      "static": {
+       "format": true,
+       "lint": true,
+       "types": true
+      }
+     },
+     "mutants": [
+      {
+       "name": "no_limit",
+       "caught": true,
+       "why": "drops the limit"
+      },
+      {
+       "name": "tolerance",
+       "caught": true,
+       "why": "lets requests a cent over the limit through"
+      }
+     ],
+     "unmergeable": [
+      {
+       "name": "float_money",
+       "tests_pass": true,
+       "rejected_by": "judge",
+       "why": "compares money as float, against the Decimal convention in AGENTS.md",
+       "judge_blocking": [
+        "The fix converts Decimal costs and the limit to float for the comparison, violating the AGENTS.md rule that money is Decimal; float conversion can misjudge the boundary, so it should use `cost(m) <= max_cost` directly."
+       ]
+      }
+     ],
+     "judge_cost_usd": 0.029449,
+     "proven": true
+    },
+    {
+     "task": "D04-health-restore",
+     "state": {
+      "hidden_failed": 2,
+      "suite_failed": 0,
+      "suite_passed": 49
+     },
+     "reference": {
+      "accepted": true,
+      "reasons": [],
+      "judge": true,
+      "static": {
+       "format": true,
+       "lint": true,
+       "types": true
+      }
+     },
+     "mutants": [
+      {
+       "name": "clears_but_keeps_degraded",
+       "caught": true,
+       "why": "does not put the model back"
+      },
+      {
+       "name": "global_minimum_raised",
+       "caught": true,
+       "why": "also triples the detection window for every model; an existing test depends on it"
+      },
+      {
+       "name": "never_again",
+       "caught": true,
+       "why": "a restored model can never be excluded again"
+      }
+     ],
+     "unmergeable": [],
+     "judge_cost_usd": 0.016961,
+     "proven": true
+    },
+    {
+     "task": "D05-usage-invalid-month",
+     "state": {
+      "hidden_failed": 6,
+      "suite_failed": 0,
+      "suite_passed": 49
+     },
+     "reference": {
+      "accepted": true,
+      "reasons": [],
+      "judge": true,
+      "static": {
+       "format": true,
+       "lint": true,
+       "types": true
+      }
+     },
+     "mutants": [
+      {
+       "name": "regex_only",
+       "caught": true,
+       "why": "accepts 2026-13"
+      },
+      {
+       "name": "returns_empty",
+       "caught": true,
+       "why": "answers 200 with an empty report"
+      }
+     ],
+     "unmergeable": [
+      {
+       "name": "swallows_every_error",
+       "tests_pass": true,
+       "rejected_by": "judge",
+       "why": "turns every failure, database errors included, into a 422 about the month",
+       "judge_blocking": [
+        "The blanket `except Exception` wraps both `db.tenant` and `ledger.usage_report`, so any failure (database outage, RLS or pool errors, bugs) is reported as a 422 'month must be given as YYYY-MM' instead of a 500, which hides real server errors; the month should be validated explicitly before the query."
+       ]
+      }
+     ],
+     "judge_cost_usd": 0.034627,
+     "proven": true
+    },
+    {
+     "task": "D06-provider-keys-tenancy",
+     "state": {
+      "hidden_failed": 2,
+      "suite_failed": 0,
+      "suite_passed": 49
+     },
+     "reference": {
+      "accepted": true,
+      "reasons": [],
+      "judge": true,
+      "static": {
+       "format": true,
+       "lint": true,
+       "types": true
+      }
+     },
+     "mutants": [
+      {
+       "name": "lists_nothing",
+       "caught": true,
+       "why": "hides the workspace's own keys too"
+      }
+     ],
+     "unmergeable": [
+      {
+       "name": "owner_with_filter",
+       "tests_pass": true,
+       "rejected_by": "judge",
+       "why": "keeps the owner connection on the request path and filters by hand, against invariant 1 in AGENTS.md",
+       "judge_blocking": [
+        "The fix still queries mrp.provider_keys through db.owner() on the request path with a manual WHERE filter, instead of using db.tenant(ws.id) so row-level security isolates workspaces, which violates the tenant isolation invariant in AGENTS.md."
+       ]
+      }
+     ],
+     "judge_cost_usd": 0.008165,
+     "proven": true
+    },
+    {
+     "task": "D07-german-task-classification",
+     "state": {
+      "hidden_failed": 17,
+      "suite_failed": 0,
+      "suite_passed": 49
+     },
+     "reference": {
+      "accepted": true,
+      "reasons": [],
+      "judge": true,
+      "static": {
+       "format": true,
+       "lint": true,
+       "types": true
+      }
+     },
+     "mutants": [
+      {
+       "name": "case_sensitive",
+       "caught": true,
+       "why": "breaks on capitalised German nouns and on English"
+      },
+      {
+       "name": "no_umlauts",
+       "caught": true,
+       "why": "misses 'Schritt f\u00fcr Schritt'"
+      }
+     ],
+     "unmergeable": [],
+     "judge_cost_usd": 0.020109,
+     "proven": true
+    },
+    {
+     "task": "D08-catalog-validation",
+     "state": {
+      "hidden_failed": 8,
+      "suite_failed": 0,
+      "suite_passed": 49
+     },
+     "reference": {
+      "accepted": true,
+      "reasons": [],
+      "judge": true,
+      "static": {
+       "format": true,
+       "lint": true,
+       "types": true
+      }
+     },
+     "mutants": [
+      {
+       "name": "plain_valueerror",
+       "caught": true,
+       "why": "raises ValueError, not CatalogError"
+      },
+      {
+       "name": "targets_as_percent",
+       "caught": true,
+       "why": "accepts 90 as a quality target"
+      }
+     ],
+     "unmergeable": [
+      {
+       "name": "edits_shipped_prices",
+       "tests_pass": true,
+       "rejected_by": "judge",
+       "why": "adds the validation but also changes a model's prices in the shipped catalogue",
+       "judge_blocking": [
+        "The change edits shipped prices in models.yaml (open-8b price_in 0.06\u21920.05, price_out 0.09\u21920.08). The task did not ask for this, and it changes routing and billing for the shipped catalogue without a `mrp evaluate` run."
+       ]
+      }
+     ],
+     "judge_cost_usd": 0.039943,
+     "proven": true
+    },
+    {
+     "task": "D09-approval-lookalike-domains",
+     "state": {
+      "hidden_failed": 5,
+      "suite_failed": 0,
+      "suite_passed": 49
+     },
+     "reference": {
+      "accepted": true,
+      "reasons": [],
+      "judge": true,
+      "static": {
+       "format": true,
+       "lint": true,
+       "types": true
+      }
+     },
+     "mutants": [
+      {
+       "name": "case_sensitive",
+       "caught": true,
+       "why": "Bob@EXAMPLE.com needs approval"
+      },
+      {
+       "name": "first_only",
+       "caught": true,
+       "why": "checks only the first recipient"
+      },
+      {
+       "name": "suffix_match",
+       "caught": true,
+       "why": "still treats notexample.com as internal"
+      }
+     ],
+     "unmergeable": [
+      {
+       "name": "fix_and_drop_old_test",
+       "tests_pass": true,
+       "rejected_by": "diff",
+       "why": "fixes the check but deletes an existing assertion",
+       "judge_blocking": [
+        "The change deletes the assertion in tests/test_agents.py that an external recipient (x@other.org) needs approval. The new code still satisfies it, so removing it only weakens the test, and AGENTS.md forbids weakening or deleting tests. It should have kept that assertion and added look-alike, subdomain, case-insensitive and multi-recipient cases."
+       ]
+      }
+     ],
+     "judge_cost_usd": 0.027856,
+     "proven": true
+    },
+    {
+     "task": "D10-compress-keeps-tool-results",
+     "state": {
+      "hidden_failed": 2,
+      "suite_failed": 0,
+      "suite_passed": 49
+     },
+     "reference": {
+      "accepted": true,
+      "reasons": [],
+      "judge": true,
+      "static": {
+       "format": true,
+       "lint": true,
+       "types": true
+      }
+     },
+     "mutants": [
+      {
+       "name": "drops_tool_messages",
+       "caught": true,
+       "why": "throws tool results away"
+      },
+      {
+       "name": "never_compress_with_tools",
+       "caught": true,
+       "why": "turns compression off for every conversation that ever used a tool"
+      },
+      {
+       "name": "one_step_only",
+       "caught": true,
+       "why": "keeps only one of several consecutive tool results"
+      }
+     ],
+     "unmergeable": [],
+     "judge_cost_usd": 0.020039,
+     "proven": true
+    },
+    {
+     "task": "D11-models-listing-prices",
+     "state": {
+      "hidden_failed": 2,
+      "suite_failed": 0,
+      "suite_passed": 49
+     },
+     "reference": {
+      "accepted": true,
+      "reasons": [],
+      "judge": true,
+      "static": {
+       "format": true,
+       "lint": true,
+       "types": true
+      }
+     },
+     "mutants": [
+      {
+       "name": "always_fine_tuned",
+       "caught": true,
+       "why": "adds an empty fine_tuned_for to every model"
+      },
+      {
+       "name": "with_markup",
+       "caught": true,
+       "why": "shows a price with the team markup"
+      }
+     ],
+     "unmergeable": [
+      {
+       "name": "float_prices",
+       "tests_pass": true,
+       "rejected_by": "judge",
+       "why": "puts prices through float, against the Decimal convention for money",
+       "judge_blocking": [
+        "Prices are converted with float(m.price_in) and float(m.price_out). AGENTS.md requires money to be Decimal, and the task asks for prices exactly as in the catalogue, which float can misrepresent. Serialise them as Decimal-exact values, such as strings or a Decimal-preserving JSON encoding."
+       ]
+      }
+     ],
+     "judge_cost_usd": 0.030379,
+     "proven": true
+    },
+    {
+     "task": "D12-idempotency-key-validation",
+     "state": {
+      "hidden_failed": 5,
+      "suite_failed": 0,
+      "suite_passed": 49
+     },
+     "reference": {
+      "accepted": true,
+      "reasons": [],
+      "judge": true,
+      "static": {
+       "format": true,
+       "lint": true,
+       "types": true
+      }
+     },
+     "mutants": [
+      {
+       "name": "http_exception",
+       "caught": true,
+       "why": "returns the wrong error shape"
+      },
+      {
+       "name": "length_only",
+       "caught": true,
+       "why": "accepts empty and non-ASCII keys"
+      },
+      {
+       "name": "truncates",
+       "caught": true,
+       "why": "silently truncates instead of rejecting"
+      }
+     ],
+     "unmergeable": [],
+     "judge_cost_usd": 0.01858,
+     "proven": true
+    }
+   ]
+  },
+  "heldout": {
+   "set": "heldout",
+   "tasks": 6,
+   "proven": 6,
+   "mutants": 24,
+   "mutants_caught": 24,
+   "unmergeable": 4,
+   "unmergeable_rejected": 4,
+   "unmergeable_rejected_by": {
+    "static": 0,
+    "diff": 0,
+    "judge": 4,
+    "none": 0
+   },
+   "judge_passes_references": "6/6",
+   "judge_cost_usd": 0.328,
+   "with_judge": true,
+   "tasks_detail": [
+    {
+     "task": "H01-run-approval-tenancy",
+     "state": {
+      "hidden_failed": 5,
+      "suite_failed": 0,
+      "suite_passed": 49
+     },
+     "reference": {
+      "accepted": true,
+      "reasons": [],
+      "judge": true,
+      "static": {
+       "format": true,
+       "lint": true,
+       "types": true
+      }
+     },
+     "mutants": [
+      {
+       "name": "checked_in_the_handler_only",
+       "caught": true,
+       "why": "adds a 404 check in the HTTP handler but leaves Runner.decide on the owner connection, so a direct call with the wrong workspace still records the decision."
+      },
+      {
+       "name": "existence_checked_as_owner",
+       "caught": true,
+       "why": "checks that the run exists on the owner connection, so another workspace's run is found and the caller gets 409, not 404."
+      },
+      {
+       "name": "nothing_pending_is_404",
+       "caught": true,
+       "why": "maps every refusal to 404, so the owner deciding a step with nothing pending no longer gets 409."
+      },
+      {
+       "name": "tenant_without_404",
+       "caught": true,
+       "why": "switches back to the tenant connection but another workspace's run (and an unknown run) still answers 409 instead of 404 \"no such run\"."
+      }
+     ],
+     "unmergeable": [
+      {
+       "name": "owner_connection_with_where_clause",
+       "tests_pass": true,
+       "rejected_by": "judge",
+       "why": "behaves correctly but keeps a request-path query on db.owner() and relies on hand-written workspace_id filters, which AGENTS.md rule 1 forbids (row-level security must do the isolating).",
+       "judge_blocking": [
+        "Runner.decide, which the approve/reject HTTP handler calls, still queries workspace tables (agent_runs, run_steps) through db.owner(), which bypasses row-level security. AGENTS.md forbids this on the request path. The fix relies on hand-written workspace_id WHERE clauses instead of db.tenant(workspace_id), so tenant isolation rests on query text and not on RLS. The new docstring also wrongly says RLS hides other workspaces' runs."
+       ]
+      }
+     ],
+     "judge_cost_usd": 0.042197,
+     "proven": true
+    },
+    {
+     "task": "H02-cache-hit-charge",
+     "state": {
+      "hidden_failed": 5,
+      "suite_failed": 0,
+      "suite_passed": 49
+     },
+     "reference": {
+      "accepted": true,
+      "reasons": [],
+      "judge": true,
+      "static": {
+       "format": true,
+       "lint": true,
+       "types": true
+      }
+     },
+     "mutants": [
+      {
+       "name": "estimated_tokens",
+       "caught": true,
+       "why": "recomputes the cost from token estimates instead of the provider-reported tokens, so hits are still billed from an estimate."
+      },
+      {
+       "name": "request_actual_cost",
+       "caught": true,
+       "why": "stores the request's total actual cost, which includes the escalated cheap first try, so a later hit is billed for calls that did not produce the answer."
+      },
+      {
+       "name": "routed_primary_prices",
+       "caught": true,
+       "why": "prices the answer with the routed primary model, which is wrong after a fallback answered instead."
+      }
+     ],
+     "unmergeable": [
+      {
+       "name": "hard_coded_cache_share",
+       "tests_pass": true,
+       "rejected_by": "judge",
+       "why": "fixes the stored cost but replaces the catalogue's cache.cached_answer_charge with a hard-coded 0.10 in the ledger, so a price change in models.yaml would silently stop applying to cache hits.",
+       "judge_blocking": [
+        "`record_cache_hit` in `src/mrp/ledger.py` hard-codes `Decimal(\"0.10\")` in place of the catalogue's `cache.cached_answer_charge`. The charge belongs in configuration, so changing the catalogue value would no longer change what cache hits are billed."
+       ]
+      }
+     ],
+     "judge_cost_usd": 0.082654,
+     "proven": true
+    },
+    {
+     "task": "H03-stream-splice",
+     "state": {
+      "hidden_failed": 2,
+      "suite_failed": 0,
+      "suite_passed": 49
+     },
+     "reference": {
+      "accepted": true,
+      "reasons": [],
+      "judge": true,
+      "static": {
+       "format": true,
+       "lint": true,
+       "types": true
+      }
+     },
+     "mutants": [
+      {
+       "name": "error_event_then_fallback",
+       "caught": true,
+       "why": "sends the provider_error event but keeps going, so the fallback model's answer is still spliced in after it."
+      },
+      {
+       "name": "no_fallback_in_streams",
+       "caught": true,
+       "why": "stops on any streaming failure, so a model that fails before its first chunk is no longer replaced by the fallback."
+      },
+      {
+       "name": "second_error_event",
+       "caught": true,
+       "why": "restores the guard but still sends a no_provider error after the provider_error event, so the stream does not end with the one provider_error the brief asks for."
+      },
+      {
+       "name": "stops_without_the_error_event",
+       "caught": true,
+       "why": "stops before the fallback but sends no error event, so the client cannot tell the answer was cut off."
+      }
+     ],
+     "unmergeable": [],
+     "judge_cost_usd": 0.024708,
+     "proven": true
+    },
+    {
+     "task": "H04-monthly-budget",
+     "state": {
+      "hidden_failed": 9,
+      "suite_failed": 0,
+      "suite_passed": 49
+     },
+     "reference": {
+      "accepted": true,
+      "reasons": [],
+      "judge": true,
+      "static": {
+       "format": true,
+       "lint": true,
+       "types": true
+      }
+     },
+     "mutants": [
+      {
+       "name": "all_time_spend",
+       "caught": true,
+       "why": "sums billed amounts over all time, so earlier months count against this month's budget."
+      },
+      {
+       "name": "budget_read_as_owner",
+       "caught": true,
+       "why": "reads the budget on the owner connection, so a workspace sees another workspace's budget and everyone's spend."
+      },
+      {
+       "name": "estimate_added_to_spend",
+       "caught": true,
+       "why": "adds the request's estimated cost to what was billed, so a request is refused while the month is still below the budget (estimates are never spend)."
+      },
+      {
+       "name": "provider_cost_not_bill",
+       "caught": true,
+       "why": "compares our provider cost (actual_cost) instead of what the customer was billed, so spend including markup can exceed the budget unnoticed."
+      },
+      {
+       "name": "refused_only_above_the_limit",
+       "caught": true,
+       "why": "refuses only when spend is strictly above the limit, so a month whose bill has exactly reached the budget keeps being answered."
+      }
+     ],
+     "unmergeable": [
+      {
+       "name": "budget_as_float",
+       "tests_pass": true,
+       "rejected_by": "judge",
+       "why": "stores and compares the budget as a float (double precision column, float model field), which AGENTS.md forbids for money (Decimal, 8 places, half up).",
+       "judge_blocking": [
+        "The budget is handled as float instead of Decimal, which AGENTS.md forbids for money. `BudgetIn.monthly_limit` is a float, the `mrp.budgets.monthly_limit` column is `double precision`, and `check_entitlements` compares `float(spent)` against it. This can give wrong results at the boundary, and `GET` can return values that are not the exact 8-place amount the user set."
+       ]
+      }
+     ],
+     "judge_cost_usd": 0.062147,
+     "proven": true
+    },
+    {
+     "task": "H05-cancel-agent-run",
+     "state": {
+      "hidden_failed": 7,
+      "suite_failed": 0,
+      "suite_passed": 49
+     },
+     "reference": {
+      "accepted": true,
+      "reasons": [],
+      "judge": true,
+      "static": {
+       "format": true,
+       "lint": true,
+       "types": true
+      }
+     },
+     "mutants": [
+      {
+       "name": "approvals_ignore_cancellation",
+       "caught": true,
+       "why": "approving or rejecting a step of a cancelled run is still accepted and re-queues the run."
+      },
+      {
+       "name": "cancelled_as_owner",
+       "caught": true,
+       "why": "cancels on the owner connection, so another workspace can cancel a run it does not own."
+      },
+      {
+       "name": "ended_runs_cancelled_too",
+       "caught": true,
+       "why": "lets a run that has already succeeded or been rejected be cancelled instead of answering 409."
+      },
+      {
+       "name": "status_set_but_worker_never_checks",
+       "caught": true,
+       "why": "the endpoint marks the run cancelled but the worker never looks again, so a running run executes its remaining steps (and ends as succeeded)."
+      }
+     ],
+     "unmergeable": [],
+     "judge_cost_usd": 0.054964,
+     "proven": true
+    },
+    {
+     "task": "H06-api-key-rotation",
+     "state": {
+      "hidden_failed": 6,
+      "suite_failed": 0,
+      "suite_passed": 49
+     },
+     "reference": {
+      "accepted": true,
+      "reasons": [],
+      "judge": true,
+      "static": {
+       "format": true,
+       "lint": true,
+       "types": true
+      }
+     },
+     "mutants": [
+      {
+       "name": "listing_includes_the_hash",
+       "caught": true,
+       "why": "the listing also returns key_hash, so items have more than the four fields and leak the stored hash."
+      },
+      {
+       "name": "own_key_hash_includes_bearer",
+       "caught": true,
+       "why": "hashes the whole Authorization header (with \"Bearer \"), so the key in use is never recognised and can revoke itself."
+      },
+      {
+       "name": "revoke_deletes_the_row",
+       "caught": true,
+       "why": "deletes the key instead of setting revoked_at, so a revoked key disappears from the listing."
+      },
+      {
+       "name": "revoked_as_owner",
+       "caught": true,
+       "why": "revokes on the owner connection, so one workspace can revoke another workspace's key."
+      }
+     ],
+     "unmergeable": [
+      {
+       "name": "logs_the_new_key",
+       "tests_pass": true,
+       "rejected_by": "judge",
+       "why": "writes the newly created API key into a log line and relies on the redaction filter to scrub it; AGENTS.md rule 3 says keys are never logged, the filter is only a second line of defence.",
+       "judge_blocking": [
+        "create_api_key passes the plaintext new API key to log.info (key=%s), relying on the redaction filter to scrub it. AGENTS.md and the task both say a key must never appear in a log line, so the key must not be passed to the logger at all."
+       ]
+      }
+     ],
+     "judge_cost_usd": 0.061374,
+     "proven": true
+    }
+   ]
+  }
+ },
+ "dev": {
+  "setups": {
+   "haiku-best2": {
+    "attempts": 36,
+    "failed": 0,
+    "tasks": 12,
+    "accepted": {
+     "rate": 0.8611111111111112,
+     "lo": 0.75,
+     "hi": 0.9444444444444443
+    },
+    "tests_pass": {
+     "rate": 1.0,
+     "lo": 1.0,
+     "hi": 1.0
+    },
+    "rejected_after_tests_pass": 5,
+    "tests_pass_count": 36,
+    "rejection_layers": {
+     "static checks": 4,
+     "review judge": 1
+    },
+    "format_only": 3,
+    "accepted_if_formatted": {
+     "rate": 0.9444444444444443,
+     "lo": 0.8888888888888887,
+     "hi": 1.0
+    },
+    "cost_usd_total": 1.7922,
+    "cost_usd_per_attempt": 0.0498,
+    "cost_per_accepted": {
+     "point": 0.05781245161290322,
+     "lo": 0.04576318749999999,
+     "hi": 0.0733330625
+    },
+    "median_minutes": 1.32,
+    "denied_actions": 76
+   },
+   "haiku-review": {
+    "attempts": 36,
+    "failed": 0,
+    "tasks": 12,
+    "accepted": {
+     "rate": 0.8055555555555555,
+     "lo": 0.6388888888888888,
+     "hi": 0.9444444444444443
+    },
+    "tests_pass": {
+     "rate": 1.0,
+     "lo": 1.0,
+     "hi": 1.0
+    },
+    "rejected_after_tests_pass": 7,
+    "tests_pass_count": 36,
+    "rejection_layers": {
+     "static checks": 6,
+     "review judge": 1
+    },
+    "format_only": 6,
+    "accepted_if_formatted": {
+     "rate": 0.9722222222222222,
+     "lo": 0.9166666666666665,
+     "hi": 1.0
+    },
+    "cost_usd_total": 1.6315,
+    "cost_usd_per_attempt": 0.0453,
+    "cost_per_accepted": {
+     "point": 0.056257655172413795,
+     "lo": 0.043964249999999996,
+     "hi": 0.07183733333333334
+    },
+    "median_minutes": 1.09,
+    "denied_actions": 105
+   },
+   "haiku-solo": {
+    "attempts": 36,
+    "failed": 0,
+    "tasks": 12,
+    "accepted": {
+     "rate": 0.8888888888888887,
+     "lo": 0.8055555555555555,
+     "hi": 0.9722222222222222
+    },
+    "tests_pass": {
+     "rate": 0.9722222222222222,
+     "lo": 0.9166666666666666,
+     "hi": 1.0
+    },
+    "rejected_after_tests_pass": 3,
+    "tests_pass_count": 35,
+    "rejection_layers": {
+     "review judge": 2,
+     "static checks": 1
+    },
+    "format_only": 1,
+    "accepted_if_formatted": {
+     "rate": 0.9166666666666665,
+     "lo": 0.8333333333333334,
+     "hi": 0.9722222222222222
+    },
+    "cost_usd_total": 1.2598,
+    "cost_usd_per_attempt": 0.035,
+    "cost_per_accepted": {
+     "point": 0.039367593750000006,
+     "lo": 0.032267735294117646,
+     "hi": 0.04880003571428572
+    },
+    "median_minutes": 0.7,
+    "denied_actions": 38
+   },
+   "sonnet-review": {
+    "attempts": 36,
+    "failed": 0,
+    "tasks": 12,
+    "accepted": {
+     "rate": 0.6944444444444443,
+     "lo": 0.5555555555555555,
+     "hi": 0.8333333333333334
+    },
+    "tests_pass": {
+     "rate": 1.0,
+     "lo": 1.0,
+     "hi": 1.0
+    },
+    "rejected_after_tests_pass": 11,
+    "tests_pass_count": 36,
+    "rejection_layers": {
+     "static checks": 8,
+     "review judge": 3
+    },
+    "format_only": 8,
+    "accepted_if_formatted": {
+     "rate": 0.9166666666666666,
+     "lo": 0.8055555555555555,
+     "hi": 1.0
+    },
+    "cost_usd_total": 5.5941,
+    "cost_usd_per_attempt": 0.1554,
+    "cost_per_accepted": {
+     "point": 0.2237624,
+     "lo": 0.1713557142857143,
+     "hi": 0.30155703999999994
+    },
+    "median_minutes": 0.7,
+    "denied_actions": 110
+   },
+   "sonnet-solo": {
+    "attempts": 36,
+    "failed": 0,
+    "tasks": 12,
+    "accepted": {
+     "rate": 0.6388888888888888,
+     "lo": 0.47222222222222227,
+     "hi": 0.7777777777777778
+    },
+    "tests_pass": {
+     "rate": 0.9722222222222222,
+     "lo": 0.9166666666666665,
+     "hi": 1.0
+    },
+    "rejected_after_tests_pass": 12,
+    "tests_pass_count": 35,
+    "rejection_layers": {
+     "review judge": 4,
+     "static checks": 8
+    },
+    "format_only": 7,
+    "accepted_if_formatted": {
+     "rate": 0.8333333333333334,
+     "lo": 0.7222222222222223,
+     "hi": 0.9444444444444443
+    },
+    "cost_usd_total": 3.9698,
+    "cost_usd_per_attempt": 0.1103,
+    "cost_per_accepted": {
+     "point": 0.172602,
+     "lo": 0.12138916666666666,
+     "hi": 0.25087831250000003
+    },
+    "median_minutes": 0.38,
+    "denied_actions": 69
+   }
+  },
+  "confidence": 0.9,
+  "vs_baseline": {
+   "haiku-best2": {
+    "tasks": 12,
+    "diff": -0.02777777777777778,
+    "lo": -0.19444444444444445,
+    "hi": 0.11111111111111112
+   },
+   "haiku-review": {
+    "tasks": 12,
+    "diff": -0.08333333333333333,
+    "lo": -0.2222222222222222,
+    "hi": 0.05555555555555555
+   },
+   "sonnet-review": {
+    "tasks": 12,
+    "diff": -0.19444444444444445,
+    "lo": -0.3333333333333334,
+    "hi": -0.05555555555555556
+   },
+   "sonnet-solo": {
+    "tasks": 12,
+    "diff": -0.25000000000000006,
+    "lo": -0.4444444444444444,
+    "hi": -0.08333333333333333
+   }
+  },
+  "vs_baseline_if_formatted": {
+   "haiku-best2": {
+    "tasks": 12,
+    "diff": 0.02777777777777778,
+    "lo": -0.08333333333333333,
+    "hi": 0.11111111111111112
+   },
+   "haiku-review": {
+    "tasks": 12,
+    "diff": 0.05555555555555556,
+    "lo": 0.0,
+    "hi": 0.11111111111111112
+   },
+   "sonnet-review": {
+    "tasks": 12,
+    "diff": 0.0,
+    "lo": -0.11111111111111112,
+    "hi": 0.11111111111111112
+   },
+   "sonnet-solo": {
+    "tasks": 12,
+    "diff": -0.08333333333333333,
+    "lo": -0.22222222222222224,
+    "hi": 0.02777777777777778
+   }
+  },
+  "aa": {
+   "haiku-best2": {
+    "tasks": 12,
+    "diff": 0.08333333333333333,
+    "lo": 0.0,
+    "hi": 0.25
+   },
+   "haiku-review": {
+    "tasks": 12,
+    "diff": -0.16666666666666666,
+    "lo": -0.3333333333333333,
+    "hi": 0.0
+   },
+   "haiku-solo": {
+    "tasks": 12,
+    "diff": -0.3333333333333333,
+    "lo": -0.5833333333333334,
+    "hi": -0.08333333333333333
+   },
+   "sonnet-review": {
+    "tasks": 12,
+    "diff": 0.16666666666666666,
+    "lo": -0.08333333333333333,
+    "hi": 0.4166666666666667
+   },
+   "sonnet-solo": {
+    "tasks": 12,
+    "diff": 0.16666666666666666,
+    "lo": -0.08333333333333333,
+    "hi": 0.4166666666666667
+   }
+  },
+  "decision": {
+   "choice": "haiku-solo",
+   "why": "no candidate beat the baseline by the decision rule"
+  },
+  "per_task": {
+   "haiku-best2": {
+    "D01-open-weight-only": {
+     "accepted": 3.0,
+     "of": 3
+    },
+    "D02-negation-cache-hits": {
+     "accepted": 2.0,
+     "of": 3
+    },
+    "D03-max-cost-boundary": {
+     "accepted": 3.0,
+     "of": 3
+    },
+    "D04-health-restore": {
+     "accepted": 2.0,
+     "of": 3
+    },
+    "D05-usage-invalid-month": {
+     "accepted": 3.0,
+     "of": 3
+    },
+    "D06-provider-keys-tenancy": {
+     "accepted": 2.0,
+     "of": 3
+    },
+    "D07-german-task-classification": {
+     "accepted": 3.0,
+     "of": 3
+    },
+    "D08-catalog-validation": {
+     "accepted": 3.0,
+     "of": 3
+    },
+    "D09-approval-lookalike-domains": {
+     "accepted": 3.0,
+     "of": 3
+    },
+    "D10-compress-keeps-tool-results": {
+     "accepted": 3.0,
+     "of": 3
+    },
+    "D11-models-listing-prices": {
+     "accepted": 1.0,
+     "of": 3
+    },
+    "D12-idempotency-key-validation": {
+     "accepted": 3.0,
+     "of": 3
+    }
+   },
+   "haiku-review": {
+    "D01-open-weight-only": {
+     "accepted": 3.0,
+     "of": 3
+    },
+    "D02-negation-cache-hits": {
+     "accepted": 3.0,
+     "of": 3
+    },
+    "D03-max-cost-boundary": {
+     "accepted": 3.0,
+     "of": 3
+    },
+    "D04-health-restore": {
+     "accepted": 3.0,
+     "of": 3
+    },
+    "D05-usage-invalid-month": {
+     "accepted": 3.0,
+     "of": 3
+    },
+    "D06-provider-keys-tenancy": {
+     "accepted": 2.0,
+     "of": 3
+    },
+    "D07-german-task-classification": {
+     "accepted": 2.0,
+     "of": 3
+    },
+    "D08-catalog-validation": {
+     "accepted": 3.0,
+     "of": 3
+    },
+    "D09-approval-lookalike-domains": {
+     "accepted": 3.0,
+     "of": 3
+    },
+    "D10-compress-keeps-tool-results": {
+     "accepted": 1.0,
+     "of": 3
+    },
+    "D11-models-listing-prices": {
+     "accepted": 3.0,
+     "of": 3
+    },
+    "D12-idempotency-key-validation": {
+     "accepted": 0.0,
+     "of": 3
+    }
+   },
+   "haiku-solo": {
+    "D01-open-weight-only": {
+     "accepted": 2.0,
+     "of": 3
+    },
+    "D02-negation-cache-hits": {
+     "accepted": 3.0,
+     "of": 3
+    },
+    "D03-max-cost-boundary": {
+     "accepted": 3.0,
+     "of": 3
+    },
+    "D04-health-restore": {
+     "accepted": 3.0,
+     "of": 3
+    },
+    "D05-usage-invalid-month": {
+     "accepted": 2.0,
+     "of": 3
+    },
+    "D06-provider-keys-tenancy": {
+     "accepted": 3.0,
+     "of": 3
+    },
+    "D07-german-task-classification": {
+     "accepted": 3.0,
+     "of": 3
+    },
+    "D08-catalog-validation": {
+     "accepted": 3.0,
+     "of": 3
+    },
+    "D09-approval-lookalike-domains": {
+     "accepted": 3.0,
+     "of": 3
+    },
+    "D10-compress-keeps-tool-results": {
+     "accepted": 2.0,
+     "of": 3
+    },
+    "D11-models-listing-prices": {
+     "accepted": 3.0,
+     "of": 3
+    },
+    "D12-idempotency-key-validation": {
+     "accepted": 2.0,
+     "of": 3
+    }
+   },
+   "sonnet-review": {
+    "D01-open-weight-only": {
+     "accepted": 2.0,
+     "of": 3
+    },
+    "D02-negation-cache-hits": {
+     "accepted": 1.0,
+     "of": 3
+    },
+    "D03-max-cost-boundary": {
+     "accepted": 3.0,
+     "of": 3
+    },
+    "D04-health-restore": {
+     "accepted": 3.0,
+     "of": 3
+    },
+    "D05-usage-invalid-month": {
+     "accepted": 1.0,
+     "of": 3
+    },
+    "D06-provider-keys-tenancy": {
+     "accepted": 2.0,
+     "of": 3
+    },
+    "D07-german-task-classification": {
+     "accepted": 3.0,
+     "of": 3
+    },
+    "D08-catalog-validation": {
+     "accepted": 3.0,
+     "of": 3
+    },
+    "D09-approval-lookalike-domains": {
+     "accepted": 2.0,
+     "of": 3
+    },
+    "D10-compress-keeps-tool-results": {
+     "accepted": 1.0,
+     "of": 3
+    },
+    "D11-models-listing-prices": {
+     "accepted": 1.0,
+     "of": 3
+    },
+    "D12-idempotency-key-validation": {
+     "accepted": 3.0,
+     "of": 3
+    }
+   },
+   "sonnet-solo": {
+    "D01-open-weight-only": {
+     "accepted": 2.0,
+     "of": 3
+    },
+    "D02-negation-cache-hits": {
+     "accepted": 1.0,
+     "of": 3
+    },
+    "D03-max-cost-boundary": {
+     "accepted": 3.0,
+     "of": 3
+    },
+    "D04-health-restore": {
+     "accepted": 3.0,
+     "of": 3
+    },
+    "D05-usage-invalid-month": {
+     "accepted": 3.0,
+     "of": 3
+    },
+    "D06-provider-keys-tenancy": {
+     "accepted": 2.0,
+     "of": 3
+    },
+    "D07-german-task-classification": {
+     "accepted": 0.0,
+     "of": 3
+    },
+    "D08-catalog-validation": {
+     "accepted": 2.0,
+     "of": 3
+    },
+    "D09-approval-lookalike-domains": {
+     "accepted": 2.0,
+     "of": 3
+    },
+    "D10-compress-keeps-tool-results": {
+     "accepted": 1.0,
+     "of": 3
+    },
+    "D11-models-listing-prices": {
+     "accepted": 1.0,
+     "of": 3
+    },
+    "D12-idempotency-key-validation": {
+     "accepted": 3.0,
+     "of": 3
+    }
+   }
+  },
+  "ledgers": [
+   {
+    "run": "dev-1",
+    "open_reservations_match": true,
+    "settled_match": true,
+    "abandoned_usd": 11.4,
+    "committed_usd": 25.647327,
+    "budget_usd": 40.0,
+    "within_budget": true
+   }
+  ],
+  "regraded": 84
+ },
+ "heldout": {
+  "recorded_at": "2026-11-03T02:14:02.154044+00:00",
+  "run": "heldout-1",
+  "tasks": [
+   "H01-run-approval-tenancy",
+   "H02-cache-hit-charge",
+   "H03-stream-splice",
+   "H04-monthly-budget",
+   "H05-cancel-agent-run",
+   "H06-api-key-rotation"
+  ],
+  "setups": {
+   "haiku-solo": {
+    "attempts": 6,
+    "accepted": 6,
+    "tests_pass": 6,
+    "cost_usd": 0.4292,
+    "per_task": {
+     "H02-cache-hit-charge": true,
+     "H04-monthly-budget": true,
+     "H01-run-approval-tenancy": true,
+     "H06-api-key-rotation": true,
+     "H05-cancel-agent-run": true,
+     "H03-stream-splice": true
+    }
+   },
+   "haiku-review": {
+    "attempts": 6,
+    "accepted": 4,
+    "tests_pass": 4,
+    "cost_usd": 0.4487,
+    "per_task": {
+     "H05-cancel-agent-run": false,
+     "H06-api-key-rotation": true,
+     "H02-cache-hit-charge": true,
+     "H04-monthly-budget": false,
+     "H03-stream-splice": true,
+     "H01-run-approval-tenancy": true
+    }
+   },
+   "haiku-best2": {
+    "attempts": 6,
+    "accepted": 4,
+    "tests_pass": 6,
+    "cost_usd": 0.5995,
+    "per_task": {
+     "H02-cache-hit-charge": true,
+     "H06-api-key-rotation": true,
+     "H05-cancel-agent-run": true,
+     "H04-monthly-budget": false,
+     "H01-run-approval-tenancy": true,
+     "H03-stream-splice": false
+    }
+   },
+   "sonnet-solo": {
+    "attempts": 6,
+    "accepted": 4,
+    "tests_pass": 5,
+    "cost_usd": 1.2254,
+    "per_task": {
+     "H06-api-key-rotation": true,
+     "H03-stream-splice": true,
+     "H02-cache-hit-charge": false,
+     "H05-cancel-agent-run": false,
+     "H04-monthly-budget": true,
+     "H01-run-approval-tenancy": true
+    }
+   },
+   "sonnet-review": {
+    "attempts": 6,
+    "accepted": 3,
+    "tests_pass": 6,
+    "cost_usd": 1.8704,
+    "per_task": {
+     "H06-api-key-rotation": true,
+     "H02-cache-hit-charge": false,
+     "H03-stream-splice": true,
+     "H05-cancel-agent-run": false,
+     "H04-monthly-budget": false,
+     "H01-run-approval-tenancy": true
+    }
+   }
+  },
+  "ledger": {
+   "open_reservations_match": true,
+   "settled_match": true,
+   "abandoned_usd": 0.0,
+   "committed_usd": 4.573181,
+   "budget_usd": 15.0,
+   "within_budget": true
+  },
+  "skipped_for_budget": 0
+ },
+ "setups": {
+  "haiku-best2": {
+   "flow": "best_of",
+   "model": "haiku",
+   "n": 2,
+   "selector_model": "haiku"
+  },
+  "haiku-review": {
+   "flow": "review",
+   "max_revisions": 1,
+   "model": "haiku",
+   "reviewer_model": "haiku"
+  },
+  "haiku-solo": {
+   "flow": "solo",
+   "model": "haiku"
+  },
+  "sonnet-review": {
+   "flow": "review",
+   "max_revisions": 1,
+   "model": "sonnet",
+   "reviewer_model": "sonnet"
+  },
+  "sonnet-solo": {
+   "flow": "solo",
+   "model": "sonnet"
+  }
+ },
+ "decision_rule": {
+  "baseline": "haiku-solo",
+  "bootstrap_samples": 4000,
+  "confidence": 0.9,
+  "max_quality_loss": 0.1
+ }
+}

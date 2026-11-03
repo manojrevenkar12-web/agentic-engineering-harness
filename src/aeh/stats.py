@@ -27,6 +27,10 @@ def _cells(attempts: list[dict], key: str = "accepted") -> dict[str, dict[str, l
         g = a["grade"] or {}
         if key == "accepted":
             v = bool(g.get("accepted"))
+        elif key == "accepted_if_formatted":
+            # Exact, not estimated: these attempts passed every other check and the judge called them
+            # mergeable; `ruff format` changes layout only. What a formatter hook would have turned around.
+            v = bool(g.get("accepted")) or g.get("reasons") == ["static: format"]
         elif key == "resolved":
             v = bool(g.get("resolved")) and not (g.get("regression") or {}).get("failed")
         else:
@@ -84,6 +88,7 @@ def summarize(attempts: list[dict]) -> dict:
     cfg = load("decision")
     n, conf = int(cfg["bootstrap_samples"]), float(cfg["confidence"])
     acc, res = _cells(attempts, "accepted"), _cells(attempts, "resolved")
+    fmt = _cells(attempts, "accepted_if_formatted")
     setups = sorted({a["setup"] for a in attempts})
     out: dict = {"setups": {}, "confidence": conf}
     for s in setups:
@@ -92,6 +97,7 @@ def summarize(attempts: list[dict]) -> dict:
             continue
         rate, lo, hi = bootstrap_rate(acc[s], n, conf)
         rrate, rlo, rhi = bootstrap_rate(res[s], n, conf)
+        frate, flo, fhi = bootstrap_rate(fmt[s], n, conf)
         graded = [a for a in mine if a["state"] == "done"]
         passing = [
             a
@@ -109,6 +115,10 @@ def summarize(attempts: list[dict]) -> dict:
             "rejected_after_tests_pass": len(rejected),
             "tests_pass_count": len(passing),
             "rejection_layers": _layers(rejected),
+            # Not a re-grade: the attempts whose only finding was `ruff format`. A formatter hook would have
+            # turned them into accepted changes, so this separates a discipline gap from a quality gap.
+            "format_only": sum((a["grade"] or {}).get("reasons") == ["static: format"] for a in rejected),
+            "accepted_if_formatted": {"rate": frate, "lo": flo, "hi": fhi},
             "cost_usd_total": round(sum(_cost(a) for a in mine), 4),
             "cost_usd_per_attempt": round(sum(_cost(a) for a in mine) / len(mine), 4),
             "cost_per_accepted": cost_per_accepted(attempts, s, n, conf),
@@ -120,6 +130,9 @@ def summarize(attempts: list[dict]) -> dict:
     base = cfg["baseline"]
     out["vs_baseline"] = {
         s: bootstrap_diff(acc[s], acc[base], n, conf) for s in out["setups"] if s != base and base in acc
+    }
+    out["vs_baseline_if_formatted"] = {
+        s: bootstrap_diff(fmt[s], fmt[base], n, conf) for s in out["setups"] if s != base and base in fmt
     }
     out["aa"] = _aa(attempts, n, conf)
     out["decision"] = decide(out, base, float(cfg["max_quality_loss"]))

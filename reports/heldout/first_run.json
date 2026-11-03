@@ -1,0 +1,93 @@
+{
+ "recorded_at": "2026-11-03T02:14:02.154044+00:00",
+ "run": "heldout-1",
+ "tasks": [
+  "H01-run-approval-tenancy",
+  "H02-cache-hit-charge",
+  "H03-stream-splice",
+  "H04-monthly-budget",
+  "H05-cancel-agent-run",
+  "H06-api-key-rotation"
+ ],
+ "setups": {
+  "haiku-solo": {
+   "attempts": 6,
+   "accepted": 6,
+   "tests_pass": 6,
+   "cost_usd": 0.4292,
+   "per_task": {
+    "H02-cache-hit-charge": true,
+    "H04-monthly-budget": true,
+    "H01-run-approval-tenancy": true,
+    "H06-api-key-rotation": true,
+    "H05-cancel-agent-run": true,
+    "H03-stream-splice": true
+   }
+  },
+  "haiku-review": {
+   "attempts": 6,
+   "accepted": 4,
+   "tests_pass": 4,
+   "cost_usd": 0.4487,
+   "per_task": {
+    "H05-cancel-agent-run": false,
+    "H06-api-key-rotation": true,
+    "H02-cache-hit-charge": true,
+    "H04-monthly-budget": false,
+    "H03-stream-splice": true,
+    "H01-run-approval-tenancy": true
+   }
+  },
+  "haiku-best2": {
+   "attempts": 6,
+   "accepted": 4,
+   "tests_pass": 6,
+   "cost_usd": 0.5995,
+   "per_task": {
+    "H02-cache-hit-charge": true,
+    "H06-api-key-rotation": true,
+    "H05-cancel-agent-run": true,
+    "H04-monthly-budget": false,
+    "H01-run-approval-tenancy": true,
+    "H03-stream-splice": false
+   }
+  },
+  "sonnet-solo": {
+   "attempts": 6,
+   "accepted": 4,
+   "tests_pass": 5,
+   "cost_usd": 1.2254,
+   "per_task": {
+    "H06-api-key-rotation": true,
+    "H03-stream-splice": true,
+    "H02-cache-hit-charge": false,
+    "H05-cancel-agent-run": false,
+    "H04-monthly-budget": true,
+    "H01-run-approval-tenancy": true
+   }
+  },
+  "sonnet-review": {
+   "attempts": 6,
+   "accepted": 3,
+   "tests_pass": 6,
+   "cost_usd": 1.8704,
+   "per_task": {
+    "H06-api-key-rotation": true,
+    "H02-cache-hit-charge": false,
+    "H03-stream-splice": true,
+    "H05-cancel-agent-run": false,
+    "H04-monthly-budget": false,
+    "H01-run-approval-tenancy": true
+   }
+  }
+ },
+ "ledger": {
+  "open_reservations_match": true,
+  "settled_match": true,
+  "abandoned_usd": 0.0,
+  "committed_usd": 4.573181,
+  "budget_usd": 15.0,
+  "within_budget": true
+ },
+ "skipped_for_budget": 0
+}

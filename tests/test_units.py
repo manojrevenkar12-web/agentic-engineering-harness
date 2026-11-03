@@ -156,6 +156,16 @@ def test_tests_pass_but_rejected_is_counted_separately():
     assert x["rejected_after_tests_pass"] == 1 and x["rejection_layers"] == {"review judge": 1}
 
 
+def test_a_formatting_only_rejection_is_counted_and_only_it_counts_as_formattable():
+    fmt = _att("haiku-solo", "t1", 1, False, resolved=True)
+    fmt["grade"] |= {"static": {"format": {"ok": False}}, "reasons": ["static: format"]}
+    both = _att("haiku-solo", "t2", 1, False, resolved=True)
+    both["grade"] |= {"static": {"format": {"ok": False}}, "reasons": ["static: format", "review: float money"]}
+    x = stats.summarize([fmt, both])["setups"]["haiku-solo"]
+    assert x["format_only"] == 1
+    assert x["accepted"]["rate"] == 0.0 and x["accepted_if_formatted"]["rate"] == 0.5
+
+
 def test_cost_per_accepted_change_with_no_acceptance_is_infinite():
     c = stats.cost_per_accepted([_att("haiku-solo", "t1", 1, False)], "haiku-solo", 200, 0.9)
     assert c["point"] == float("inf")

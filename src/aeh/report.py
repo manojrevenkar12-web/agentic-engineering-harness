@@ -59,7 +59,10 @@ def collect() -> dict:
     return {
         "generated_at": datetime.now(UTC).isoformat(),
         "proofs": {k: v["summary"] | {"tasks_detail": v["tasks"]} if v else None for k, v in proofs.items()},
-        "dev": stats.summarize(dev_attempts) | {"ledgers": dev_ledgers} if dev_attempts else None,
+        "dev": stats.summarize(dev_attempts)
+        | {"ledgers": dev_ledgers, "regraded": sum("previous" in (a.get("grade") or {}) for a in dev_attempts)}
+        if dev_attempts
+        else None,
         "heldout": first,
         "setups": load("setups")["setups"],
         "decision_rule": load("decision"),
@@ -89,19 +92,24 @@ def markdown(r: dict) -> str:
     d = r["dev"]
     if d:
         lines = [
-            "| Setup | Attempts | Tests pass | Accepted | Rejected after tests pass | Cost per attempt | Cost per accepted change | Median minutes |",
-            "|---|---:|---:|---:|---:|---:|---:|---:|",
+            "| Setup | Attempts | Tests pass | Accepted | Rejected after tests pass | of which formatting only | Cost per attempt | Cost per accepted change | Median minutes |",
+            "|---|---:|---:|---:|---:|---:|---:|---:|---:|",
         ]
         for s, x in d["setups"].items():
             a, t, c = x["accepted"], x["tests_pass"], x["cost_per_accepted"]
             lines.append(
                 f"| {s} | {x['attempts']} | {_pct(t['rate'])} | {_pct(a['rate'])} ({_pct(a['lo'])}-{_pct(a['hi'])}) | "
-                f"{x['rejected_after_tests_pass']} of {x['tests_pass_count']} | {_usd(x['cost_usd_per_attempt'])} | "
+                f"{x['rejected_after_tests_pass']} of {x['tests_pass_count']} | {x.get('format_only', 0)} | {_usd(x['cost_usd_per_attempt'])} | "
                 f"{_usd(c.get('point'))} ({_usd(c.get('lo'))}-{_usd(c.get('hi'))}) | {x['median_minutes']} |"
             )
         diffs = "\n".join(
             f"- {s}: {v['diff']:+.0%} accepted (interval {v['lo']:+.0%} to {v['hi']:+.0%}, {v['tasks']} tasks)"
             for s, v in d["vs_baseline"].items()
+            if v.get("tasks")
+        )
+        fmt_diffs = "\n".join(
+            f"- {s}: {v['diff']:+.0%} accepted (interval {v['lo']:+.0%} to {v['hi']:+.0%})"
+            for s, v in d.get("vs_baseline_if_formatted", {}).items()
             if v.get("tasks")
         )
         aa = "\n".join(
@@ -112,9 +120,16 @@ def markdown(r: dict) -> str:
         out.append(
             f"## Benchmark on the dev tasks\n\nIntervals are {int(100 * d['confidence'])}% bootstrap intervals over tasks.\n\n"
             + "\n".join(lines)
-            + f"\n\nAgainst the baseline, paired by task:\n\n{diffs or '- none'}\n\nNoise floor (the same setup against itself):\n\n{aa or '- needs two samples'}\n\n"
+            + f"\n\nAgainst the baseline, paired by task:\n\n{diffs or '- none'}\n\n"
+            f"The same comparison if a formatter had run after each agent (computed from the grades: the attempts stopped "
+            f"only by `ruff format` had passed every other check, the judge included):\n\n{fmt_diffs or '- none'}\n\nNoise floor (the same setup against itself):\n\n{aa or '- needs two samples'}\n\n"
             f"**Decision:** {d['decision']['choice']}: {d['decision']['why']}.\n"
         )
+        if d.get("regraded"):
+            out.append(
+                f"{d['regraded']} attempts were graded again with `aeh regrade` after a grading-environment fix; "
+                "the agents did not run again, and each first grade is kept in the record under `previous`.\n"
+            )
         for led in d.get("ledgers", []):
             out.append(
                 f"Budget {led['run']}: ${led['committed_usd']:.2f} committed of ${led['budget_usd']:.2f}; within budget: {led['within_budget']}; "
